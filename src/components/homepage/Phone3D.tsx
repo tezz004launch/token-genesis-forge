@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { PresentationControls, Environment, ContactShadows } from '@react-three/drei'
+import { PresentationControls, Environment } from '@react-three/drei'
 import * as THREE from 'three'
 
 // Simplified phone model component
@@ -25,7 +25,6 @@ function PhoneModel() {
       {/* Phone body */}
       <mesh 
         castShadow 
-        receiveShadow
         rotation={[0.1, -0.4, 0.1]}
       >
         <boxGeometry args={[3, 6, 0.2]} />
@@ -64,7 +63,7 @@ export default function Phone3D() {
 
   if (hasError) {
     return (
-      <div className="w-full h-[400px] md:h-[500px] flex items-center justify-center bg-crypto-dark/30 rounded-lg">
+      <div className="w-full h-[400px] md:h-[500px] flex items-center justify-center bg-transparent rounded-lg">
         <div className="text-center p-4">
           <p className="text-crypto-light">Unable to load 3D model</p>
           <p className="text-sm text-crypto-light/70 mt-2">Please try again later</p>
@@ -76,17 +75,21 @@ export default function Phone3D() {
   return (
     <div className="relative w-full h-[400px] md:h-[500px]">
       <Canvas 
-        shadows 
-        gl={{ preserveDrawingBuffer: true, antialias: true }}
+        shadows
+        gl={{ 
+          preserveDrawingBuffer: true, 
+          antialias: true,
+          alpha: true 
+        }}
         camera={{ position: [0, 0, 10], fov: 45 }}
         onCreated={({ gl }) => {
-          gl.setClearColor('transparent')
+          gl.setClearColor(0x000000, 0) // Completely transparent background
         }}
         onError={() => setHasError(true)}
       >
         <color attach="background" args={['transparent']} />
-        <ambientLight intensity={0.5} />
-        <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} castShadow />
+        <ambientLight intensity={0.7} />
+        <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
         
         <PresentationControls
           global
@@ -99,8 +102,8 @@ export default function Phone3D() {
           <PhoneModel />
         </PresentationControls>
         
-        <ContactShadows position={[0, -3.5, 0]} opacity={0.4} scale={20} blur={1.75} far={4.5} />
-        <Environment preset="city" />
+        {/* Removed ContactShadows for transparency */}
+        <Environment preset="city" background={false} />
       </Canvas>
       
       <div className="absolute bottom-2 left-0 right-0 text-center text-xs text-crypto-light opacity-70">
