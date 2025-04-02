@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Infinity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, UserPlus } from 'lucide-react';
 import AuthWallet from './AuthWallet';
 
 const Header = () => {
@@ -30,6 +30,10 @@ const Header = () => {
           </Link>
           <Link to="/create-token" className="text-white hover:text-blue-400 transition-colors px-3 py-2 rounded-full hover:bg-gray-800">
             Create Token
+          </Link>
+          <Link to="/register-wallet" className="text-white hover:text-blue-400 transition-colors px-3 py-2 rounded-full hover:bg-gray-800 flex items-center gap-1">
+            <UserPlus size={16} />
+            Register Wallet
           </Link>
           <a 
             href="https://raydium.io/liquidity/create-pool/" 
@@ -88,6 +92,14 @@ const Header = () => {
               onClick={() => setIsMenuOpen(false)}
             >
               Create Token
+            </Link>
+            <Link 
+              to="/register-wallet" 
+              className="text-white hover:text-blue-400 transition-colors flex items-center gap-1"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <UserPlus size={16} />
+              Register Wallet
             </Link>
             <a 
               href="https://raydium.io/liquidity/create-pool/" 

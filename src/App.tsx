@@ -28,6 +28,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import TokenTrackerPage from "./pages/TokenTrackerPage";
 import TokenCreationPage from "./pages/TokenCreationPage";
+import WalletRegistrationPage from "./pages/WalletRegistrationPage";
 
 // Initialize QueryClient for React Query
 const queryClient = new QueryClient();
@@ -59,6 +60,7 @@ const App = () => {
                     <Route path="/" element={<Index />} />
                     <Route path="/tracker" element={<TokenTrackerPage />} />
                     <Route path="/create-token" element={<TokenCreationPage />} />
+                    <Route path="/register-wallet" element={<WalletRegistrationPage />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </TooltipProvider>
