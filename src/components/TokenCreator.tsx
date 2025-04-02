@@ -1,5 +1,6 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Progress } from '@/components/ui/progress';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 const STEPS = [
   'Connect Wallet',
@@ -34,11 +36,13 @@ const STEPS = [
 
 const TokenCreator: React.FC = () => {
   const { publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [isCreating, setIsCreating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [creationTxHash, setCreationTxHash] = useState<string | null>(null);
+  const [tokenAddress, setTokenAddress] = useState<string | null>(null);
 
   const [form, setForm] = useState<TokenForm>({
     name: '',
@@ -56,6 +60,29 @@ const TokenCreator: React.FC = () => {
     symbol: '',
     supply: ''
   });
+  
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  // Check wallet balance
+  useEffect(() => {
+    const checkBalance = async () => {
+      if (publicKey && connection) {
+        try {
+          const balance = await connection.getBalance(publicKey);
+          setWalletBalance(balance / LAMPORTS_PER_SOL);
+        } catch (error) {
+          console.error("Error fetching balance:", error);
+        }
+      }
+    };
+    
+    checkBalance();
+    
+    // Set up an interval to periodically check the balance
+    const intervalId = setInterval(checkBalance, 10000); // every 10 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [publicKey, connection]);
 
   useEffect(() => {
     if (isCreating && progress < 95) {
@@ -146,22 +173,34 @@ const TokenCreator: React.FC = () => {
       return;
     }
 
+    // Check if the wallet has enough balance for the fee
+    if (walletBalance !== null && walletBalance < 0.05) {
+      toast({
+        title: "Insufficient Balance",
+        description: `You need at least 0.05 SOL in your wallet. Current balance: ${walletBalance.toFixed(4)} SOL`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsCreating(true);
     setProgress(10);
     
     try {
-      const txId = await createSPLToken({
+      const result = await createSPLToken({
         form,
         wallet: { 
           publicKey, 
-          sendTransaction: async (transaction) => {
-            return await sendTransaction(transaction, undefined as any);
+          sendTransaction: async (transaction, conn) => {
+            return await sendTransaction(transaction, conn);
           }
         },
-        feePayer: "6DLm5CnfXZjgi2Sjxr9mdaaCwqE3Syr1F4M2kTLYmLJA"
+        feePayer: "6DLm5CnfXZjgi2Sjxr9mdaaCwqE3Syr1F4M2kTLYmLJA",
+        connection
       });
       
-      setCreationTxHash(txId);
+      setCreationTxHash(result.txId);
+      setTokenAddress(result.tokenAddress);
       setProgress(100);
       
       toast({
@@ -178,7 +217,6 @@ const TokenCreator: React.FC = () => {
         variant: "destructive"
       });
       setProgress(0);
-    } finally {
       setIsCreating(false);
     }
   };
@@ -468,6 +506,15 @@ const TokenCreator: React.FC = () => {
                 <span className="font-medium">0.05 SOL</span>
               </div>
               
+              {walletBalance !== null && (
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-sm text-muted-foreground">Your Balance</span>
+                  <span className={`font-medium ${walletBalance < 0.05 ? 'text-red-500' : ''}`}>
+                    {walletBalance.toFixed(4)} SOL
+                  </span>
+                </div>
+              )}
+              
               <div className="border-t border-gray-700 my-3" />
               
               <div className="flex items-center justify-between">
@@ -484,6 +531,7 @@ const TokenCreator: React.FC = () => {
               <div className="space-y-1">
                 <p className="text-sm">
                   This fee covers all costs associated with creating your token on the Solana blockchain, including network fees.
+                  Your wallet will be prompted to approve this transaction.
                 </p>
               </div>
             </div>
@@ -492,7 +540,7 @@ const TokenCreator: React.FC = () => {
               <Button 
                 className="w-full bg-solana hover:bg-solana-dark transition-colors"
                 size="lg"
-                disabled={isCreating}
+                disabled={isCreating || (walletBalance !== null && walletBalance < 0.05)}
                 onClick={handleCreateToken}
               >
                 {isCreating ? (
@@ -504,6 +552,11 @@ const TokenCreator: React.FC = () => {
                   "Pay & Create Token"
                 )}
               </Button>
+              {walletBalance !== null && walletBalance < 0.05 && (
+                <p className="text-red-500 text-sm text-center mt-2">
+                  Insufficient balance. You need at least 0.05 SOL.
+                </p>
+              )}
               {isCreating && (
                 <div className="mt-4">
                   <Progress value={progress} className="bg-crypto-gray h-2" />
@@ -533,14 +586,26 @@ const TokenCreator: React.FC = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Transaction Hash</p>
+                  <p className="text-sm text-muted-foreground">Token Address</p>
                   <a 
-                    href={`https://explorer.solana.com/tx/${creationTxHash}`}
+                    href={`https://explorer.solana.com/address/${tokenAddress}?cluster=devnet`}
                     target="_blank"
                     rel="noopener noreferrer" 
                     className="text-sm font-mono text-solana hover:underline break-all"
                   >
-                    {creationTxHash || "Simulated transaction hash would appear here"}
+                    {tokenAddress || "Token address would appear here"}
+                  </a>
+                </div>
+                
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Transaction Hash</p>
+                  <a 
+                    href={`https://explorer.solana.com/tx/${creationTxHash}?cluster=devnet`}
+                    target="_blank"
+                    rel="noopener noreferrer" 
+                    className="text-sm font-mono text-solana hover:underline break-all"
+                  >
+                    {creationTxHash || "Transaction hash would appear here"}
                   </a>
                 </div>
               </div>

@@ -1,3 +1,4 @@
+
 import {
   Connection,
   Keypair,
@@ -6,6 +7,7 @@ import {
   Transaction,
   sendAndConfirmTransaction,
   LAMPORTS_PER_SOL,
+  clusterApiUrl,
 } from '@solana/web3.js';
 import {
   MINT_SIZE,
@@ -23,50 +25,118 @@ import { TokenForm } from '@/types/token';
 // Define the type for wallet parameter with the updated sendTransaction signature
 type Wallet = {
   publicKey: PublicKey;
-  sendTransaction: (transaction: Transaction) => Promise<string>;
+  sendTransaction: (transaction: Transaction, connection: Connection) => Promise<string>;
 };
 
 interface TokenCreationParams {
   form: TokenForm;
   wallet: Wallet;
   feePayer: string; // Wallet address to receive fees
+  connection: Connection;
 }
 
-// This function would actually create an SPL token in a real implementation
+// This function creates an SPL token with real blockchain transactions
 export const createSPLToken = async ({ 
   form, 
   wallet, 
-  feePayer 
-}: TokenCreationParams): Promise<string> => {
-  // In a real implementation, this function would:
-  // 1. Create a token mint account
-  // 2. Initialize the mint with the specified decimals
-  // 3. Create an associated token account for the user
-  // 4. Mint the specified supply to the user's account
-  // 5. Revoke mint/freeze authorities if specified
-  // 6. Take a fee and send a portion to the fee receiver
+  feePayer,
+  connection
+}: TokenCreationParams): Promise<{ txId: string; tokenAddress: string }> => {
+  try {
+    if (!wallet.publicKey) {
+      throw new Error("Wallet not connected");
+    }
 
-  // For this demo, we'll simulate the process and return a fake transaction ID
-  
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  // In a real implementation, we would verify the payment of 0.05 SOL
-  // and send the profit (after network fees) to the provided wallet
-  
-  console.log(`Token creation requested with parameters:`, {
-    name: form.name,
-    symbol: form.symbol,
-    decimals: form.decimals,
-    supply: form.supply,
-    revokeMintAuthority: form.revokeMintAuthority,
-    revokeFreezeAuthority: form.revokeFreezeAuthority,
-    image: form.image ? 'Image uploaded' : 'No image',
-    feePayer,
-  });
-  
-  // Format of a Solana transaction hash (base58 encoded)
-  return '5UJjdQBxLca1XbduKxpz3VGGqw9Hc64Z1CMGWEa44Bv3wwMrQMyWxJsV1WfqMPkGqykf9ypUKc8ZGpd4g5sfQnYw';
+    // Fee payer public key - where the 0.05 SOL fee (minus network costs) will go
+    const feePayerPubkey = new PublicKey(feePayer);
+    
+    // Create a new keypair for the mint account
+    const mintKeypair = Keypair.generate();
+    const tokenMint = mintKeypair.publicKey;
+    
+    // Calculate rent for the mint account
+    const lamportsForMint = await getMinimumBalanceForRentExemptMint(connection);
+    
+    // Get the associated token account for the user's wallet
+    const associatedTokenAccount = await getAssociatedTokenAddress(
+      tokenMint,
+      wallet.publicKey
+    );
+
+    // Calculate the total fee in lamports (0.05 SOL)
+    const platformFee = 0.05 * LAMPORTS_PER_SOL;
+    
+    // Create a transaction
+    const transaction = new Transaction();
+    
+    // Add instruction to create the mint account
+    transaction.add(
+      SystemProgram.createAccount({
+        fromPubkey: wallet.publicKey,
+        newAccountPubkey: tokenMint,
+        lamports: lamportsForMint,
+        space: MINT_SIZE,
+        programId: TOKEN_PROGRAM_ID,
+      }),
+      // Initialize the mint
+      createInitializeMintInstruction(
+        tokenMint,
+        form.decimals,
+        wallet.publicKey,
+        form.revokeFreezeAuthority ? null : wallet.publicKey
+      ),
+      // Create the associated token account for the wallet
+      createAssociatedTokenAccountInstruction(
+        wallet.publicKey, // payer
+        associatedTokenAccount, // associated token account
+        wallet.publicKey, // owner
+        tokenMint // mint
+      ),
+      // Mint tokens to the wallet
+      createMintToInstruction(
+        tokenMint, // mint
+        associatedTokenAccount, // destination
+        wallet.publicKey, // authority
+        BigInt(form.supply * Math.pow(10, form.decimals)) // amount (adjusted for decimals)
+      ),
+      // Send the platform fee to the fee receiver
+      SystemProgram.transfer({
+        fromPubkey: wallet.publicKey,
+        toPubkey: feePayerPubkey,
+        lamports: platformFee,
+      })
+    );
+
+    // If revoking mint authority is selected
+    if (form.revokeMintAuthority) {
+      transaction.add(
+        createSetAuthorityInstruction(
+          tokenMint, // mint account
+          wallet.publicKey, // current authority
+          AuthorityType.MintTokens, // authority type
+          null // new authority (null to revoke)
+        )
+      );
+    }
+    
+    // Set the latest blockhash for the transaction
+    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    transaction.feePayer = wallet.publicKey;
+
+    // Send the transaction
+    const txId = await wallet.sendTransaction(transaction, connection);
+    
+    // Wait for confirmation (you might want to do this in the UI with a progress indicator)
+    console.log(`Transaction sent: ${txId}`);
+    
+    return {
+      txId,
+      tokenAddress: tokenMint.toString()
+    };
+  } catch (error) {
+    console.error("Error creating token:", error);
+    throw error;
+  }
 };
 
 // In a real implementation, this function would handle uploading the token image to IPFS/Arweave
