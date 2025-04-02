@@ -31,6 +31,14 @@ const Token = ({ symbol, className, color, delay = '0s', size = 'w-12 h-12' }: T
 const AppShowcase = () => {
   const isMobile = useIsMobile();
   
+  // Add console logging to verify component rendering
+  React.useEffect(() => {
+    console.log('AppShowcase rendered');
+    // Check if device-frame styles are applied
+    const deviceFrameElements = document.querySelectorAll('.device-frame');
+    console.log('Device frame elements found:', deviceFrameElements.length);
+  }, []);
+  
   return (
     <div className={`relative ${isMobile ? 'h-[400px]' : 'h-[500px]'} w-full mt-8 md:mt-0`}>
       {/* Phone mockup */}
@@ -170,6 +178,13 @@ const AppShowcase = () => {
           className="left-[40%] bottom-[15%]"
           delay="1.2s" 
         />
+      </div>
+      
+      {/* Add stars for background effect */}
+      <div className="absolute inset-0 overflow-hidden">
+        {Array(20).fill(0).map((_, i) => (
+          <div key={i} className={`star star-${i+1}`}></div>
+        ))}
       </div>
     </div>
   );
