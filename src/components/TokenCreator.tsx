@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { createSPLToken } from '@/lib/solana/tokenService';
 import { TokenForm } from '@/types/token';
 import ImageUpload from './ImageUpload';
-import { Coins, CreditCard, Info, Loader2 } from 'lucide-react';
+import { Coins, CreditCard, Info, Loader2, Check } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -22,27 +21,25 @@ import {
 } from "@/components/ui/tooltip";
 import { Progress } from '@/components/ui/progress';
 
-// Define the steps for token creation
 const STEPS = [
-  'Connect Wallet', // Step 1
-  'Basic Information', // Step 2
-  'Supply & Decimals', // Step 3
-  'Permissions', // Step 4
-  'Image Upload', // Step 5
-  'Review', // Step 6
-  'Payment', // Step 7
-  'Confirmation' // Step 8
+  'Connect Wallet',
+  'Basic Information',
+  'Supply & Decimals',
+  'Permissions',
+  'Image Upload',
+  'Review',
+  'Payment',
+  'Confirmation'
 ];
 
 const TokenCreator: React.FC = () => {
   const { publicKey, sendTransaction } = useWallet();
   const { toast } = useToast();
-  const [currentStep, setCurrentStep] = useState(1); // 0-indexed in code, 1-indexed in UI
+  const [currentStep, setCurrentStep] = useState(1);
   const [isCreating, setIsCreating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [creationTxHash, setCreationTxHash] = useState<string | null>(null);
-  
-  // Token creation form state
+
   const [form, setForm] = useState<TokenForm>({
     name: '',
     symbol: '',
@@ -54,14 +51,12 @@ const TokenCreator: React.FC = () => {
     revokeFreezeAuthority: true
   });
 
-  // Form validation states
   const [errors, setErrors] = useState({
     name: '',
     symbol: '',
     supply: ''
   });
 
-  // Simulate token creation progress
   useEffect(() => {
     if (isCreating && progress < 95) {
       const timer = setTimeout(() => {
@@ -71,7 +66,6 @@ const TokenCreator: React.FC = () => {
     }
   }, [isCreating, progress]);
 
-  // Form validation function
   const validateForm = useCallback(() => {
     const newErrors = {
       name: '',
@@ -97,7 +91,6 @@ const TokenCreator: React.FC = () => {
     return !Object.values(newErrors).some(error => error !== '');
   }, [form]);
 
-  // Handle form changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setForm(prev => ({
@@ -106,7 +99,6 @@ const TokenCreator: React.FC = () => {
     }));
   };
 
-  // Handle checkbox changes
   const handleCheckboxChange = (checked: boolean, name: string) => {
     setForm(prev => ({
       ...prev,
@@ -114,7 +106,6 @@ const TokenCreator: React.FC = () => {
     }));
   };
 
-  // Handle image upload
   const handleImageUpload = (file: File | null) => {
     setForm(prev => ({
       ...prev,
@@ -122,7 +113,6 @@ const TokenCreator: React.FC = () => {
     }));
   };
 
-  // Move to the next step
   const nextStep = () => {
     if (currentStep === 1) {
       if (!validateForm()) {
@@ -140,14 +130,12 @@ const TokenCreator: React.FC = () => {
     }
   };
 
-  // Move to the previous step
   const prevStep = () => {
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1);
     }
   };
 
-  // Handle token creation
   const handleCreateToken = async () => {
     if (!publicKey) {
       toast({
@@ -162,12 +150,15 @@ const TokenCreator: React.FC = () => {
     setProgress(10);
     
     try {
-      // This would normally call the actual token creation function
-      // For this example, we'll simulate the creation process
       const txId = await createSPLToken({
         form,
-        wallet: { publicKey, sendTransaction },
-        feePayer: "6DLm5CnfXZjgi2Sjxr9mdaaCwqE3Syr1F4M2kTLYmLJA" // Your wallet to receive fees
+        wallet: { 
+          publicKey, 
+          sendTransaction: async (transaction) => {
+            return await sendTransaction(transaction, undefined as any);
+          }
+        },
+        feePayer: "6DLm5CnfXZjgi2Sjxr9mdaaCwqE3Syr1F4M2kTLYmLJA"
       });
       
       setCreationTxHash(txId);
@@ -178,7 +169,6 @@ const TokenCreator: React.FC = () => {
         description: "Your SPL token has been created and sent to your wallet.",
       });
       
-      // Move to confirmation step
       setCurrentStep(STEPS.length - 1);
     } catch (error) {
       console.error('Token creation error:', error);
@@ -193,10 +183,9 @@ const TokenCreator: React.FC = () => {
     }
   };
 
-  // Render different step content based on current step
   const renderStepContent = () => {
     switch (currentStep) {
-      case 1: // Basic Information
+      case 1:
         return (
           <div className="space-y-6">
             <div className="space-y-2">
@@ -252,7 +241,7 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 2: // Supply & Decimals
+      case 2:
         return (
           <div className="space-y-8">
             <div className="space-y-4">
@@ -319,7 +308,7 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 3: // Permissions
+      case 3:
         return (
           <div className="space-y-6">
             <div className="space-y-1">
@@ -380,7 +369,7 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 4: // Image Upload
+      case 4:
         return (
           <div className="space-y-6">
             <div className="space-y-2">
@@ -401,7 +390,7 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 5: // Review
+      case 5:
         return (
           <div className="space-y-6">
             <div className="space-y-2">
@@ -463,7 +452,7 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 6: // Payment
+      case 6:
         return (
           <div className="space-y-6">
             <div className="space-y-2">
@@ -527,7 +516,7 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 7: // Confirmation
+      case 7:
         return (
           <div className="text-center space-y-6 py-6">
             <div className="w-20 h-20 mx-auto rounded-full border-2 border-crypto-green/30 flex items-center justify-center bg-crypto-green/10">

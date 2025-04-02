@@ -1,4 +1,3 @@
-
 import {
   Connection,
   Keypair,
@@ -21,7 +20,7 @@ import {
 } from '@solana/spl-token';
 import { TokenForm } from '@/types/token';
 
-// Define the type for wallet parameter
+// Define the type for wallet parameter with the updated sendTransaction signature
 type Wallet = {
   publicKey: PublicKey;
   sendTransaction: (transaction: Transaction) => Promise<string>;
