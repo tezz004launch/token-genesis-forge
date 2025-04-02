@@ -4,42 +4,46 @@ import { Canvas } from '@react-three/fiber'
 import { PresentationControls, Environment, ContactShadows } from '@react-three/drei'
 import * as THREE from 'three'
 
-function PhoneModel(props) {
-  const meshRef = useRef()
+// Simplified phone model component
+function PhoneModel() {
   const [phoneTexture, setPhoneTexture] = useState(null)
   
   useEffect(() => {
-    // Load texture inside useEffect to prevent issues during SSR/hydration
-    new THREE.TextureLoader().load('/lovable-uploads/369e24ff-1db4-4135-bb76-f64501c73259.png', (texture) => {
-      setPhoneTexture(texture)
-    })
+    // Load texture inside useEffect to prevent SSR/hydration issues
+    const textureLoader = new THREE.TextureLoader()
+    textureLoader.load('/lovable-uploads/369e24ff-1db4-4135-bb76-f64501c73259.png', 
+      (texture) => {
+        setPhoneTexture(texture)
+      },
+      undefined,
+      (error) => console.error("Error loading texture:", error)
+    )
   }, [])
   
   return (
-    <group {...props}>
+    <group position={[0, 0, 0]}>
       {/* Phone body */}
       <mesh 
-        ref={meshRef} 
         castShadow 
         receiveShadow
         rotation={[0.1, -0.4, 0.1]}
       >
         <boxGeometry args={[3, 6, 0.2]} />
         <meshStandardMaterial 
+          color="#1a1a1a" 
           metalness={0.5}
           roughness={0.2}
-          color="#1a1a1a" 
         />
       </mesh>
       
-      {/* Phone screen - only render when texture is loaded */}
+      {/* Phone screen */}
       {phoneTexture && (
         <mesh 
           position={[0, 0, 0.11]} 
           rotation={[0.1, -0.4, 0.1]}
         >
           <planeGeometry args={[2.6, 5.4]} />
-          <meshBasicMaterial map={phoneTexture} toneMapped={false} />
+          <meshBasicMaterial map={phoneTexture} />
         </mesh>
       )}
       
@@ -56,7 +60,6 @@ function PhoneModel(props) {
 }
 
 export default function Phone3D() {
-  // Add error boundary fallback
   const [hasError, setHasError] = useState(false)
 
   if (hasError) {
@@ -74,13 +77,17 @@ export default function Phone3D() {
     <div className="relative w-full h-[400px] md:h-[500px]">
       <Canvas 
         shadows 
-        dpr={[1, 2]} 
+        gl={{ preserveDrawingBuffer: true, antialias: true }}
         camera={{ position: [0, 0, 10], fov: 45 }}
+        onCreated={({ gl }) => {
+          gl.setClearColor('transparent')
+        }}
         onError={() => setHasError(true)}
       >
         <color attach="background" args={['transparent']} />
         <ambientLight intensity={0.5} />
         <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} castShadow />
+        
         <PresentationControls
           global
           rotation={[0, 0, 0]}
@@ -89,11 +96,13 @@ export default function Phone3D() {
           config={{ mass: 2, tension: 400 }}
           snap={{ mass: 4, tension: 400 }}
         >
-          <PhoneModel position={[0, 0, 0]} />
+          <PhoneModel />
         </PresentationControls>
+        
         <ContactShadows position={[0, -3.5, 0]} opacity={0.4} scale={20} blur={1.75} far={4.5} />
         <Environment preset="city" />
       </Canvas>
+      
       <div className="absolute bottom-2 left-0 right-0 text-center text-xs text-crypto-light opacity-70">
         Click and drag to rotate the phone
       </div>

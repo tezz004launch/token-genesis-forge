@@ -57,11 +57,14 @@ const HeroSection = () => {
             </div>
           </div>
           
-          {/* 3D Phone Component with error boundary */}
+          {/* 3D Phone Component with fallback */}
           <div className="md:w-1/2 mt-8 md:mt-0">
             <Suspense fallback={
-              <div className="w-full h-[400px] md:h-[500px] flex items-center justify-center">
-                <div className="text-white">Loading 3D model...</div>
+              <div className="w-full h-[400px] md:h-[500px] flex items-center justify-center bg-crypto-dark/30 rounded-lg">
+                <div className="text-white text-center">
+                  <div className="mb-2 text-crypto-purple animate-pulse">Loading 3D model...</div>
+                  <div className="text-sm text-crypto-light/70">This may take a moment</div>
+                </div>
               </div>
             }>
               <Phone3D />
