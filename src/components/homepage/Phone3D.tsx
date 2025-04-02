@@ -73,7 +73,7 @@ export default function Phone3D() {
   }
 
   return (
-    <div className="relative w-full h-[400px] md:h-[500px]">
+    <div className="relative w-full h-[400px] md:h-[500px] bg-transparent">
       <Canvas 
         shadows
         gl={{ 

@@ -58,7 +58,7 @@ const HeroSection = () => {
           </div>
           
           {/* 3D Phone Component with transparent background */}
-          <div className="md:w-1/2 mt-8 md:mt-0">
+          <div className="md:w-1/2 mt-8 md:mt-0 bg-transparent">
             <Suspense fallback={
               <div className="w-full h-[400px] md:h-[500px] flex items-center justify-center bg-transparent rounded-lg">
                 <div className="text-white text-center">
