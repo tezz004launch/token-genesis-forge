@@ -32,9 +32,15 @@ const AuthWallet: React.FC = () => {
     setAuthenticating(true);
 
     try {
+      // Fixed: We need to adapt the signMessage function to match the expected signature format
+      const adaptedSignMessage = async (message: Uint8Array) => {
+        const rawSignature = await signMessage(message);
+        return { signature: rawSignature };
+      };
+
       const { success, sessionId } = await signAuthMessage({
         publicKey,
-        signMessage
+        signMessage: adaptedSignMessage
       });
 
       if (success && sessionId) {

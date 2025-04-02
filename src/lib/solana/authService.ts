@@ -1,4 +1,3 @@
-
 import { PublicKey } from '@solana/web3.js';
 import { toast } from '@/hooks/use-toast';
 import nacl from 'tweetnacl';
@@ -22,6 +21,8 @@ const SESSION_DURATION = 30 * 60 * 1000;
  * Generate a random nonce for authentication
  */
 export const generateNonce = (): string => {
+  // Fix: nacl.randomBytes doesn't need an argument - it defaults to 32 bytes
+  // But we want 24 bytes specifically, so we'll keep the argument
   return Array.from(nacl.randomBytes(24))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
