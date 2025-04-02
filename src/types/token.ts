@@ -8,6 +8,10 @@ export interface TokenForm {
   image: File | null;
   revokeMintAuthority: boolean;
   revokeFreezeAuthority: boolean;
+  immutableMetadata: boolean;
+  website?: string;
+  twitter?: string;
+  telegram?: string;
 }
 
 export interface TokenData {

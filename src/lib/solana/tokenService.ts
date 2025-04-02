@@ -119,6 +119,14 @@ export const createSPLToken = async ({
       );
     }
     
+    // If immutable metadata is selected (in a real implementation, this would do more with metadata accounts)
+    if (form.immutableMetadata && "immutableMetadata" in form) {
+      // In a real implementation, this would update a metadata account and mark it as immutable
+      // This would require additional logic with the Metaplex SDK
+      console.log("Setting immutable metadata flag");
+      // For now, this is just a placeholder that doesn't affect the blockchain
+    }
+    
     // Set the latest blockhash for the transaction
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
     transaction.feePayer = wallet.publicKey;

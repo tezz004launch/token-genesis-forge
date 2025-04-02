@@ -81,18 +81,21 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       {!previewUrl ? (
         <div
           className={`border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center transition-colors ${
-            dragActive ? 'border-solana bg-solana/10' : 'border-gray-600 hover:border-solana/50'
+            dragActive ? 'border-solana bg-solana/10' : 'border-gray-700 hover:border-solana/50'
           }`}
           onDragEnter={handleDrag}
           onDragOver={handleDrag}
           onDragLeave={handleDrag}
           onDrop={handleDrop}
+          style={{ backgroundColor: '#14151a' }}
         >
-          <Image className="h-12 w-12 text-gray-400 mb-4" />
-          <p className="text-sm text-muted-foreground mb-2">
-            <span className="font-medium text-white">Click to upload</span> or drag and drop
+          <div className="mb-4">
+            <Upload className="h-12 w-12 text-gray-400 mx-auto" />
+          </div>
+          <p className="text-base text-white mb-2">
+            Drag and drop here to upload
           </p>
-          <p className="text-xs text-muted-foreground mb-4">PNG (Up to 5MB)</p>
+          <p className="text-sm text-muted-foreground mb-4">.png, .jpg 1000x1000 px</p>
           
           <input
             id="image-upload"
@@ -103,17 +106,14 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
           />
           <label htmlFor="image-upload">
             <Button variant="outline" className="hover:bg-solana/10 hover:text-solana" asChild>
-              <span>
-                <Upload className="mr-2 h-4 w-4" />
-                Browse Files
-              </span>
+              <span>Browse Files</span>
             </Button>
           </label>
         </div>
       ) : (
         <div className="border border-gray-700 rounded-lg p-4">
           <div className="flex items-center justify-between mb-4">
-            <h4 className="text-sm font-medium">Preview</h4>
+            <h4 className="text-sm font-medium">Logo Preview</h4>
             <Button
               variant="ghost"
               size="icon"

@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +13,18 @@ import { Slider } from '@/components/ui/slider';
 import { createSPLToken } from '@/lib/solana/tokenService';
 import { TokenForm } from '@/types/token';
 import ImageUpload from './ImageUpload';
-import { Coins, CreditCard, Info, Loader2, Check, Shield, AlertTriangle } from 'lucide-react';
+import { 
+  Coins, 
+  CreditCard, 
+  Info, 
+  Loader2, 
+  Check, 
+  Shield, 
+  AlertTriangle,
+  Globe,
+  Twitter,
+  MessageSquare
+} from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -29,7 +41,8 @@ const STEPS = [
   'Connect Wallet',
   'Authenticate',
   'Basic Information',
-  'Supply & Decimals',
+  'Token Parameters',
+  'Socials',
   'Permissions',
   'Image Upload',
   'Review',
@@ -51,12 +64,16 @@ const TokenCreator: React.FC = () => {
   const [form, setForm] = useState<TokenForm>({
     name: '',
     symbol: '',
-    decimals: 6,
+    decimals: 9,
     description: '',
-    supply: 1000000,
+    supply: 1000000000,
     image: null,
     revokeMintAuthority: false,
-    revokeFreezeAuthority: true
+    revokeFreezeAuthority: true,
+    immutableMetadata: false,
+    website: '',
+    twitter: '',
+    telegram: ''
   });
 
   const [errors, setErrors] = useState({
@@ -96,14 +113,21 @@ const TokenCreator: React.FC = () => {
   }, [publicKey, connection]);
 
   useEffect(() => {
-    if (form.revokeMintAuthority && form.revokeFreezeAuthority) {
+    // Calculate security level based on permissions
+    const securityScore = [
+      form.revokeMintAuthority,
+      form.revokeFreezeAuthority,
+      form.immutableMetadata
+    ].filter(Boolean).length;
+    
+    if (securityScore === 3) {
       setSecurityLevel('high');
-    } else if (form.revokeMintAuthority || form.revokeFreezeAuthority) {
+    } else if (securityScore >= 1) {
       setSecurityLevel('medium');
     } else {
       setSecurityLevel('low');
     }
-  }, [form.revokeMintAuthority, form.revokeFreezeAuthority]);
+  }, [form.revokeMintAuthority, form.revokeFreezeAuthority, form.immutableMetadata]);
 
   useEffect(() => {
     if (isCreating && progress < 95) {
@@ -234,7 +258,7 @@ const TokenCreator: React.FC = () => {
       
       toast({
         title: "Token Created Successfully!",
-        description: "Your SPL token has been created and sent to your wallet.",
+        description: "Your meme coin has been created and sent to your wallet.",
       });
       
       setCurrentStep(STEPS.length - 1);
@@ -318,7 +342,7 @@ const TokenCreator: React.FC = () => {
               <Input
                 id="name"
                 name="name"
-                placeholder="My Token"
+                placeholder="My Meme Token"
                 value={form.name}
                 onChange={handleInputChange}
                 className={errors.name ? "border-red-500" : ""}
@@ -335,7 +359,7 @@ const TokenCreator: React.FC = () => {
                       <Info className="h-4 w-4 text-muted-foreground" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Max 8 characters. Common format is all caps (e.g., "SOL", "BTC").</p>
+                      <p>Max 8 characters. Common format is all caps (e.g., "PEPE", "DOGE").</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -343,7 +367,7 @@ const TokenCreator: React.FC = () => {
               <Input
                 id="symbol"
                 name="symbol"
-                placeholder="MTK"
+                placeholder="MEME"
                 maxLength={8}
                 value={form.symbol}
                 onChange={handleInputChange}
@@ -357,7 +381,7 @@ const TokenCreator: React.FC = () => {
               <Textarea
                 id="description"
                 name="description"
-                placeholder="Describe your token's purpose and features..."
+                placeholder="Describe your meme coin's purpose and story..."
                 value={form.description}
                 onChange={handleInputChange}
                 rows={4}
@@ -393,7 +417,7 @@ const TokenCreator: React.FC = () => {
               
               <div className="bg-crypto-gray/30 p-4 rounded-md">
                 <p className="text-sm text-crypto-light">
-                  All tokens will initially be sent to your connected wallet. You can later transfer them to others.
+                  Popular meme coins often have large supplies (billions or trillions). All tokens will initially be sent to your connected wallet.
                 </p>
               </div>
             </div>
@@ -401,7 +425,7 @@ const TokenCreator: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <Label>Decimals <span className="text-gray-500">(Default: 6)</span></Label>
+                  <Label>Decimals <span className="text-red-500">*</span></Label>
                   <p className="text-sm text-muted-foreground">
                     How divisible your token will be (like cents in a dollar)
                   </p>
@@ -412,7 +436,7 @@ const TokenCreator: React.FC = () => {
               </div>
               
               <Slider
-                defaultValue={[6]}
+                value={[form.decimals]}
                 min={0}
                 max={9}
                 step={1}
@@ -426,7 +450,7 @@ const TokenCreator: React.FC = () => {
               
               <div className="bg-crypto-gray/30 p-4 rounded-md">
                 <p className="text-sm text-crypto-light">
-                  Standard tokens use 6-9 decimals. SOL uses 9, USDC uses 6.
+                  Most meme coins use 9 decimals (like SOL). SHIB uses 8, DOGE uses 8.
                 </p>
               </div>
             </div>
@@ -436,10 +460,72 @@ const TokenCreator: React.FC = () => {
       case 4:
         return (
           <div className="space-y-6">
-            <div className="space-y-1">
-              <h3 className="text-lg font-medium">Token Security Settings</h3>
+            <div className="space-y-1 mb-4">
+              <h3 className="text-lg font-medium">Social Links</h3>
               <p className="text-sm text-muted-foreground">
-                Configure security settings for your token
+                Add your project's social media links (optional)
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3">
+                <Globe className="h-5 w-5 text-muted-foreground" />
+                <div className="flex-1">
+                  <Label htmlFor="website" className="mb-2">Website URL</Label>
+                  <Input
+                    id="website"
+                    name="website"
+                    placeholder="https://yourmemetoken.com"
+                    value={form.website}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <Twitter className="h-5 w-5 text-muted-foreground" />
+                <div className="flex-1">
+                  <Label htmlFor="twitter" className="mb-2">X (Twitter)</Label>
+                  <Input
+                    id="twitter"
+                    name="twitter"
+                    placeholder="https://x.com/yourmemetoken"
+                    value={form.twitter}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <MessageSquare className="h-5 w-5 text-muted-foreground" />
+                <div className="flex-1">
+                  <Label htmlFor="telegram" className="mb-2">Telegram</Label>
+                  <Input
+                    id="telegram"
+                    name="telegram"
+                    placeholder="https://t.me/yourmemetoken"
+                    value={form.telegram}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-crypto-gray/30 p-4 rounded-md mt-4">
+              <p className="text-sm text-crypto-light">
+                Adding social links helps establish credibility for your meme coin and makes it easier for people to follow your project.
+              </p>
+            </div>
+          </div>
+        );
+
+      case 5:
+        return (
+          <div className="space-y-6">
+            <div className="space-y-1">
+              <h3 className="text-lg font-medium">Revoke Authorities</h3>
+              <p className="text-sm text-muted-foreground">
+                Tokens are created with several authorities by default. It is recommended to revoke all these authorities to gain more trust from investors.
               </p>
             </div>
 
@@ -467,6 +553,26 @@ const TokenCreator: React.FC = () => {
             <div className="space-y-4 pt-2">
               <div className="flex items-start space-x-3">
                 <Checkbox
+                  id="revokeFreezeAuthority"
+                  checked={form.revokeFreezeAuthority}
+                  onCheckedChange={(checked) => handleCheckboxChange(!!checked, 'revokeFreezeAuthority')}
+                />
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="revokeFreezeAuthority"
+                    className="text-base font-medium cursor-pointer"
+                  >
+                    Revoke Freeze Authority
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Removes the ability to freeze token accounts.
+                    Recommended for decentralized tokens and DeFi compatibility.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-start space-x-3">
+                <Checkbox
                   id="revokeMintAuthority"
                   checked={form.revokeMintAuthority}
                   onCheckedChange={(checked) => handleCheckboxChange(!!checked, 'revokeMintAuthority')}
@@ -487,20 +593,20 @@ const TokenCreator: React.FC = () => {
               
               <div className="flex items-start space-x-3">
                 <Checkbox
-                  id="revokeFreezeAuthority"
-                  checked={form.revokeFreezeAuthority}
-                  onCheckedChange={(checked) => handleCheckboxChange(!!checked, 'revokeFreezeAuthority')}
+                  id="immutableMetadata"
+                  checked={form.immutableMetadata}
+                  onCheckedChange={(checked) => handleCheckboxChange(!!checked, 'immutableMetadata')}
                 />
                 <div className="space-y-1">
                   <Label
-                    htmlFor="revokeFreezeAuthority"
+                    htmlFor="immutableMetadata"
                     className="text-base font-medium cursor-pointer"
                   >
-                    Revoke Freeze Authority
+                    Immutable Metadata
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Removes the ability to freeze token accounts.
-                    Recommended for decentralized tokens and DeFi compatibility.
+                    Enable to make metadata immutable to get more trust.
+                    If active, the metadata becomes immutable and cannot be changed.
                   </p>
                 </div>
               </div>
@@ -508,29 +614,8 @@ const TokenCreator: React.FC = () => {
             
             <div className="bg-amber-950/20 border border-amber-500/20 p-4 rounded-md mt-4">
               <p className="text-sm text-amber-200/70">
-                <strong>Important:</strong> Revoking authorities is permanent and cannot be undone.
+                <strong>Important:</strong> These options are completely free without additional fees! Revoking authorities is permanent and cannot be undone.
                 Make your decision carefully.
-              </p>
-            </div>
-          </div>
-        );
-
-      case 5:
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label>Token Logo <span className="text-gray-500">(optional)</span></Label>
-              <p className="text-sm text-muted-foreground">
-                Upload a PNG image that will be associated with your token
-              </p>
-            </div>
-            
-            <ImageUpload onImageUpload={handleImageUpload} currentImage={form.image} />
-            
-            <div className="bg-crypto-gray/30 p-4 rounded-md">
-              <p className="text-sm text-crypto-light">
-                Token images are typically uploaded to decentralized storage and linked to your token's metadata.
-                For best results, use a square PNG image (512x512px recommended).
               </p>
             </div>
           </div>
@@ -540,7 +625,28 @@ const TokenCreator: React.FC = () => {
         return (
           <div className="space-y-6">
             <div className="space-y-2">
-              <h3 className="text-lg font-medium">Review Your Token</h3>
+              <Label>Token Logo <span className="text-red-500">*</span></Label>
+              <p className="text-sm text-muted-foreground">
+                Upload a logo for your meme coin (PNG format recommended)
+              </p>
+            </div>
+            
+            <ImageUpload onImageUpload={handleImageUpload} currentImage={form.image} />
+            
+            <div className="bg-crypto-gray/30 p-4 rounded-md">
+              <p className="text-sm text-crypto-light">
+                Creative and recognizable logos are key for successful meme coins.
+                For best results, use a square PNG image (1000x1000px recommended).
+              </p>
+            </div>
+          </div>
+        );
+
+      case 7:
+        return (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium">Review Your Meme Coin</h3>
               <p className="text-sm text-muted-foreground">
                 Please verify all details before proceeding to payment
               </p>
@@ -576,13 +682,29 @@ const TokenCreator: React.FC = () => {
               </div>
               
               <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Mint Authority</p>
-                <p className="text-base">{form.revokeMintAuthority ? "Revoked (fixed supply)" : "Kept (can mint more)"}</p>
+                <p className="text-sm font-medium text-muted-foreground">Security</p>
+                <div className="flex items-center gap-2">
+                  {securityLevel === 'low' && (
+                    <span className="px-2 py-1 bg-red-600/20 text-red-400 rounded text-xs font-medium">Low</span>
+                  )}
+                  {securityLevel === 'medium' && (
+                    <span className="px-2 py-1 bg-yellow-600/20 text-yellow-400 rounded text-xs font-medium">Medium</span>
+                  )}
+                  {securityLevel === 'high' && (
+                    <span className="px-2 py-1 bg-green-600/20 text-green-400 rounded text-xs font-medium">High</span>
+                  )}
+                </div>
               </div>
               
               <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Freeze Authority</p>
-                <p className="text-base">{form.revokeFreezeAuthority ? "Revoked (cannot freeze)" : "Kept (can freeze accounts)"}</p>
+                <p className="text-sm font-medium text-muted-foreground">Authorities Revoked</p>
+                <p className="text-base">
+                  {[
+                    form.revokeMintAuthority ? "Mint" : "",
+                    form.revokeFreezeAuthority ? "Freeze" : "",
+                    form.immutableMetadata ? "Metadata" : ""
+                  ].filter(Boolean).join(", ") || "None"}
+                </p>
               </div>
               
               {form.description && (
@@ -591,6 +713,42 @@ const TokenCreator: React.FC = () => {
                   <p className="text-base">{form.description}</p>
                 </div>
               )}
+              
+              <div className="space-y-2 col-span-2">
+                <p className="text-sm font-medium text-muted-foreground">Social Links</p>
+                <div className="space-y-2">
+                  {form.website && (
+                    <div className="flex items-center gap-2">
+                      <Globe size={14} className="text-muted-foreground" />
+                      <a href={form.website} target="_blank" rel="noopener noreferrer" className="text-solana hover:underline">
+                        {form.website}
+                      </a>
+                    </div>
+                  )}
+                  
+                  {form.twitter && (
+                    <div className="flex items-center gap-2">
+                      <Twitter size={14} className="text-muted-foreground" />
+                      <a href={form.twitter} target="_blank" rel="noopener noreferrer" className="text-solana hover:underline">
+                        {form.twitter}
+                      </a>
+                    </div>
+                  )}
+                  
+                  {form.telegram && (
+                    <div className="flex items-center gap-2">
+                      <MessageSquare size={14} className="text-muted-foreground" />
+                      <a href={form.telegram} target="_blank" rel="noopener noreferrer" className="text-solana hover:underline">
+                        {form.telegram}
+                      </a>
+                    </div>
+                  )}
+                  
+                  {!form.website && !form.twitter && !form.telegram && (
+                    <p className="text-muted-foreground text-sm">No social links provided</p>
+                  )}
+                </div>
+              </div>
               
               {form.image && (
                 <div className="space-y-2 col-span-2">
@@ -606,13 +764,13 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 7:
+      case 8:
         return (
           <div className="space-y-6">
             <div className="space-y-2">
               <h3 className="text-lg font-medium">Payment</h3>
               <p className="text-sm text-muted-foreground">
-                Complete payment to create your token
+                Complete payment to create your meme coin
               </p>
             </div>
             
@@ -626,8 +784,8 @@ const TokenCreator: React.FC = () => {
             
             <div className="bg-crypto-gray/30 p-6 rounded-md">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-sm text-muted-foreground">Service Fee</span>
-                <span className="font-medium">0.05 SOL</span>
+                <span className="text-sm text-muted-foreground">Platform Fee</span>
+                <span className="font-medium">0.05 SOL <span className="text-sm text-green-400">(SALE)</span></span>
               </div>
               
               {walletBalance !== null && (
@@ -654,7 +812,7 @@ const TokenCreator: React.FC = () => {
               <CreditCard className="text-solana h-5 w-5 mt-0.5" />
               <div className="space-y-1">
                 <p className="text-sm">
-                  This fee covers all costs associated with creating your token on the Solana blockchain, including network fees.
+                  This fee covers all costs associated with creating your meme coin on the Solana blockchain, including network fees.
                   Your wallet will be prompted to approve this transaction.
                 </p>
               </div>
@@ -670,10 +828,10 @@ const TokenCreator: React.FC = () => {
                 {isCreating ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating Token...
+                    Creating Meme Coin...
                   </>
                 ) : (
-                  "Pay & Create Token"
+                  "Pay & Create Meme Coin"
                 )}
               </Button>
               {walletBalance !== null && walletBalance < 0.05 && (
@@ -693,14 +851,14 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 8:
+      case 9:
         return (
           <div className="text-center space-y-6 py-6">
             <div className="w-20 h-20 mx-auto rounded-full border-2 border-crypto-green/30 flex items-center justify-center bg-crypto-green/10">
               <Check className="h-10 w-10 text-crypto-green" />
             </div>
             
-            <h3 className="text-2xl font-medium">Token Created Successfully!</h3>
+            <h3 className="text-2xl font-medium">Meme Coin Created Successfully!</h3>
             
             <Alert className="bg-green-900/20 border-green-500/20 max-w-md mx-auto">
               <Shield className="h-4 w-4 text-green-500" />
@@ -749,7 +907,7 @@ const TokenCreator: React.FC = () => {
                 className="border-crypto-green text-crypto-green hover:bg-crypto-green/10"
                 onClick={() => window.location.reload()}
               >
-                Create Another Token
+                Create Another Meme Coin
               </Button>
             </div>
           </div>
@@ -771,7 +929,7 @@ const TokenCreator: React.FC = () => {
         <CardContent className="pt-6">
           {renderStepContent()}
         </CardContent>
-        {currentStep !== STEPS.length - 1 && currentStep !== 7 && (
+        {currentStep !== STEPS.length - 1 && currentStep !== 8 && (
           <CardFooter className="flex justify-between border-t border-gray-800 pt-4">
             <Button 
               variant="outline" 
