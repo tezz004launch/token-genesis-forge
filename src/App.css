@@ -2,44 +2,7 @@
 #root {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
   text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em rgba(147, 51, 234, 0.6));
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em rgba(79, 70, 229, 0.6));
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
 }
 
 /* Infinity Launch animations */
@@ -58,4 +21,62 @@
 
 .infinity-card-hover:hover {
   transform: translateY(-5px);
+  box-shadow: 0 10px 25px -5px rgba(153, 69, 255, 0.3);
+}
+
+/* Glass effect */
+.glass-card {
+  background: rgba(20, 21, 26, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Gradient borders */
+.gradient-border {
+  position: relative;
+  border-radius: 0.5rem;
+  padding: 1px;
+  background: linear-gradient(45deg, #9945FF, #00C2FF, #14F195);
+}
+
+.gradient-border-content {
+  background: #14151A;
+  border-radius: 0.4rem;
+  height: 100%;
+  width: 100%;
+}
+
+/* Button hover effects */
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(153, 69, 255, 0.5);
+}
+
+/* Neon text effect */
+.neon-text {
+  color: #fff;
+  text-shadow: 0 0 5px #9945FF, 0 0 10px #9945FF, 0 0 15px #9945FF;
+}
+
+/* Improved navigation pills */
+.nav-pill {
+  transition: all 0.2s ease-in-out;
+  background: rgba(44, 45, 51, 0.5);
+  backdrop-filter: blur(5px);
+  padding: 8px 16px;
+  border-radius: 9999px;
+  color: white;
+}
+
+.nav-pill:hover {
+  background: rgba(79, 70, 229, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Dark glass panel */
+.dark-glass {
+  background: rgba(20, 21, 26, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0.5rem;
 }

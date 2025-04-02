@@ -1,9 +1,9 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { Infinity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Infinity } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import AuthWallet from './AuthWallet';
 
 const Header = () => {
@@ -24,20 +24,36 @@ const Header = () => {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-8">
-          <Link to="/" className="text-white hover:text-blue-400 transition-colors">
+        <nav className="hidden md:flex items-center space-x-4">
+          <Link to="/" className="text-white hover:text-blue-400 transition-colors px-3 py-2 rounded-full hover:bg-gray-800">
             Home
           </Link>
-          <Link to="/tracker" className="text-white hover:text-blue-400 transition-colors">
-            Token Tracker
+          <Link to="/" className="text-white hover:text-blue-400 transition-colors px-3 py-2 rounded-full hover:bg-gray-800">
+            Create Token
           </Link>
           <a 
-            href="https://solscan.io" 
+            href="https://raydium.io/liquidity/create-pool/" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="text-white hover:text-blue-400 transition-colors"
+            className="text-white hover:text-blue-400 transition-colors px-3 py-2 rounded-full hover:bg-gray-800"
           >
-            Explorer
+            Liquidity Pool
+          </a>
+          <a 
+            href="https://raydium.io/swap/?inputMint=sol&outputMint=4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-white hover:text-blue-400 transition-colors px-3 py-2 rounded-full hover:bg-gray-800"
+          >
+            Manage Liquidity
+          </a>
+          <a 
+            href="https://discord.gg/r2bNMrHrh6" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-white hover:text-blue-400 transition-colors px-3 py-2 rounded-full hover:bg-gray-800"
+          >
+            Support
           </a>
         </nav>
 
@@ -58,7 +74,7 @@ const Header = () => {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden absolute top-16 left-0 right-0 bg-crypto-gray border-b border-gray-700 p-4 flex flex-col space-y-4">
+          <div className="md:hidden absolute top-16 left-0 right-0 bg-crypto-gray border-b border-gray-700 p-4 flex flex-col space-y-4 z-20">
             <Link 
               to="/" 
               className="text-white hover:text-blue-400 transition-colors"
@@ -67,20 +83,38 @@ const Header = () => {
               Home
             </Link>
             <Link 
-              to="/tracker" 
+              to="/" 
               className="text-white hover:text-blue-400 transition-colors"
               onClick={() => setIsMenuOpen(false)}
             >
-              Token Tracker
+              Create Token
             </Link>
             <a 
-              href="https://solscan.io" 
+              href="https://raydium.io/liquidity/create-pool/" 
               target="_blank" 
               rel="noopener noreferrer"
               className="text-white hover:text-blue-400 transition-colors"
               onClick={() => setIsMenuOpen(false)}
             >
-              Explorer
+              Liquidity Pool
+            </a>
+            <a 
+              href="https://raydium.io/swap/?inputMint=sol&outputMint=4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-white hover:text-blue-400 transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Manage Liquidity
+            </a>
+            <a 
+              href="https://discord.gg/r2bNMrHrh6" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-white hover:text-blue-400 transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Support
             </a>
             <div className="py-2">
               <AuthWallet />
