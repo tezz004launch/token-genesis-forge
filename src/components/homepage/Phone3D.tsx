@@ -46,14 +46,7 @@ function PhoneModel() {
         </mesh>
       )}
       
-      {/* Phone frame */}
-      <mesh 
-        position={[0, 0, 0.12]} 
-        rotation={[0.1, -0.4, 0.1]}
-      >
-        <ringGeometry args={[2.8/2, 2.9/2, 32]} />
-        <meshStandardMaterial color="#333333" />
-      </mesh>
+      {/* Removed the phone frame / circular element */}
     </group>
   )
 }
