@@ -11,8 +11,38 @@
   50% { transform: translateY(-10px); }
 }
 
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(153, 69, 255, 0.4); }
+  50% { box-shadow: 0 0 30px rgba(153, 69, 255, 0.7); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
 .animate-float {
   animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, 
+    rgba(153, 69, 255, 0.1) 0%, 
+    rgba(0, 194, 255, 0.2) 25%,
+    rgba(153, 69, 255, 0.1) 50%,
+    rgba(0, 194, 255, 0.2) 75%,
+    rgba(153, 69, 255, 0.1) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
 }
 
 .infinity-card-hover {
@@ -35,14 +65,14 @@
 /* Gradient borders */
 .gradient-border {
   position: relative;
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   padding: 1px;
   background: linear-gradient(45deg, #9945FF, #00C2FF, #14F195);
 }
 
 .gradient-border-content {
   background: #14151A;
-  border-radius: 0.4rem;
+  border-radius: 0.7rem;
   height: 100%;
   width: 100%;
 }
@@ -79,4 +109,69 @@
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 0.5rem;
+}
+
+/* Starfield background */
+.starfield {
+  position: relative;
+}
+
+.starfield::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: radial-gradient(white, rgba(255, 255, 255, 0) 2px);
+  background-size: 50px 50px;
+  opacity: 0.2;
+}
+
+/* Phone device frame */
+.device-frame {
+  position: relative;
+  border-radius: 2rem;
+  padding: 1px;
+  background: linear-gradient(45deg, #9945FF, #00C2FF);
+  box-shadow: 0px 0px 30px rgba(153, 69, 255, 0.5);
+}
+
+.device-frame-content {
+  background: #000;
+  border-radius: 2rem;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Planet element */
+.planet {
+  border-radius: 50%;
+  position: absolute;
+  overflow: hidden;
+}
+
+.planet::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(153, 69, 255, 0.3), transparent);
+  mix-blend-mode: overlay;
+}
+
+/* Shimmer effect for text */
+.text-shimmer {
+  background: linear-gradient(
+    90deg,
+    #ffffff,
+    #e0e0e0,
+    #ffffff
+  );
+  background-size: 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 2s linear infinite;
 }
