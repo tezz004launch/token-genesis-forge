@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Rocket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -57,9 +57,15 @@ const HeroSection = () => {
             </div>
           </div>
           
-          {/* 3D Phone Component */}
+          {/* 3D Phone Component with error boundary */}
           <div className="md:w-1/2 mt-8 md:mt-0">
-            <Phone3D />
+            <Suspense fallback={
+              <div className="w-full h-[400px] md:h-[500px] flex items-center justify-center">
+                <div className="text-white">Loading 3D model...</div>
+              </div>
+            }>
+              <Phone3D />
+            </Suspense>
           </div>
         </div>
         
