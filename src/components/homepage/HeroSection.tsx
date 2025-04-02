@@ -3,7 +3,6 @@ import React, { Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Rocket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import Phone3D from './Phone3D';
 
 const HeroSection = () => {
   return (
@@ -26,9 +25,9 @@ const HeroSection = () => {
       </div>
       
       <div className="container mx-auto relative z-10 px-4">
-        <div className="flex flex-col md:flex-row items-center text-center md:text-left">
-          <div className="flex flex-col md:w-1/2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-sm mb-6 mx-auto md:mx-0">
+        <div className="flex flex-col items-center text-center">
+          <div className="flex flex-col max-w-3xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-sm mb-6 mx-auto">
               <Rocket size={14} className="text-purple-400" />
               <span className="text-purple-200">Powered by Solana</span>
             </div>
@@ -38,12 +37,12 @@ const HeroSection = () => {
               <br className="hidden lg:block" /> Within Minutes
             </h1>
             
-            <p className="text-xl text-crypto-light max-w-2xl mb-8 leading-relaxed">
+            <p className="text-xl text-crypto-light max-w-2xl mx-auto mb-8 leading-relaxed">
               Create, deploy, and manage your custom SPL token with zero coding knowledge.
               Built for creators, communities, and businesses.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto mb-12 md:mb-0">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <Link to="/tracker">
                 <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white py-6 text-lg h-auto font-medium w-full sm:w-auto">
                   Create Your Token <ArrowRight className="ml-2" />
@@ -55,20 +54,6 @@ const HeroSection = () => {
                 </Button>
               </a>
             </div>
-          </div>
-          
-          {/* 3D Phone Component with transparent background */}
-          <div className="md:w-1/2 mt-8 md:mt-0 bg-transparent">
-            <Suspense fallback={
-              <div className="w-full h-[400px] md:h-[500px] flex items-center justify-center bg-transparent rounded-lg">
-                <div className="text-white text-center">
-                  <div className="mb-2 text-crypto-purple animate-pulse">Loading 3D model...</div>
-                  <div className="text-sm text-crypto-light/70">This may take a moment</div>
-                </div>
-              </div>
-            }>
-              <Phone3D />
-            </Suspense>
           </div>
         </div>
         
