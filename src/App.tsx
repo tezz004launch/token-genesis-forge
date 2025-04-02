@@ -51,26 +51,28 @@ const App = () => {
   );
 
   return (
-    <BrowserRouter>
-      <ConnectionProvider endpoint={endpoint}>
-        <WalletProvider wallets={wallets} autoConnect>
-          <SessionProvider>
-            <QueryClientProvider client={queryClient}>
-              <TooltipProvider>
-                <Toaster />
-                <Sonner />
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/tracker" element={<TokenTrackerPage />} />
-                  <Route path="/create-token" element={<TokenCreationPage />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </TooltipProvider>
-            </QueryClientProvider>
-          </SessionProvider>
-        </WalletProvider>
-      </ConnectionProvider>
-    </BrowserRouter>
+    <div className="fixed-size-wrapper">
+      <BrowserRouter>
+        <ConnectionProvider endpoint={endpoint}>
+          <WalletProvider wallets={wallets} autoConnect>
+            <SessionProvider>
+              <QueryClientProvider client={queryClient}>
+                <TooltipProvider>
+                  <Toaster />
+                  <Sonner />
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/tracker" element={<TokenTrackerPage />} />
+                    <Route path="/create-token" element={<TokenCreationPage />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </TooltipProvider>
+              </QueryClientProvider>
+            </SessionProvider>
+          </WalletProvider>
+        </ConnectionProvider>
+      </BrowserRouter>
+    </div>
   );
 };
 

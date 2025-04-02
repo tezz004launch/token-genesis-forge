@@ -1,8 +1,10 @@
 
 #root {
-  max-width: 1280px;
+  width: 1920px;
+  height: 1080px;
   margin: 0 auto;
   text-align: center;
+  overflow: hidden;
 }
 
 /* Only keeping unique animations that don't conflict with index.css */
@@ -120,4 +122,13 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: shimmer 2s linear infinite;
+}
+
+/* Fixed size wrapper for 1920x1080 layout */
+.fixed-size-wrapper {
+  width: 1920px;
+  height: 1080px;
+  margin: 0 auto;
+  position: relative;
+  overflow: auto;
 }
