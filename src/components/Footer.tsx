@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Infinity, Github, Twitter, Discord } from 'lucide-react';
+import { Infinity, Github, Twitter, MessageSquare } from 'lucide-react';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -96,7 +96,7 @@ const Footer = () => {
                   rel="noopener noreferrer" 
                   className="text-crypto-light hover:text-white transition-colors text-sm flex items-center gap-2"
                 >
-                  <Discord size={16} />
+                  <MessageSquare size={16} />
                   Discord Community
                 </a>
               </li>
