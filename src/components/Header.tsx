@@ -28,7 +28,7 @@ const Header = () => {
           <Link to="/" className="text-white hover:text-blue-400 transition-colors px-3 py-2 rounded-full hover:bg-gray-800">
             Home
           </Link>
-          <Link to="/" className="text-white hover:text-blue-400 transition-colors px-3 py-2 rounded-full hover:bg-gray-800">
+          <Link to="/create-token" className="text-white hover:text-blue-400 transition-colors px-3 py-2 rounded-full hover:bg-gray-800">
             Create Token
           </Link>
           <a 
@@ -83,7 +83,7 @@ const Header = () => {
               Home
             </Link>
             <Link 
-              to="/" 
+              to="/create-token" 
               className="text-white hover:text-blue-400 transition-colors"
               onClick={() => setIsMenuOpen(false)}
             >
