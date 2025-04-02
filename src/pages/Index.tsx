@@ -64,10 +64,10 @@ const Index = () => {
             {/* Starfield Background */}
             <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1470813740244-df37b8c1edcb')] bg-cover bg-center opacity-20"></div>
             
-            {/* Moon/Planet Image */}
+            {/* Use the new planet image */}
             <div className="absolute top-10 right-0 md:right-10 md:top-20 w-32 h-32 md:w-72 md:h-72 rounded-full overflow-hidden animate-float">
               <img 
-                src="/lovable-uploads/2d6681b2-4d62-499d-a162-8dd3bb8a6bcc.png" 
+                src="/lovable-uploads/f0c45a14-5303-4cf6-b387-3fb64b4d04c3.png" 
                 alt="Infinity Launch" 
                 className="w-full h-full object-cover"
               />
@@ -81,8 +81,8 @@ const Index = () => {
           <div className="container mx-auto relative z-10 px-4">
             <div className="flex flex-col items-center text-center max-w-5xl mx-auto mb-16">
               <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4 text-white leading-tight">
-                Launch your <span className="text-solana">$Solana</span> Token
-                <div className="mt-2">Take it to <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-blue-400 to-purple-500">Infinity!</span></div>
+                The world's most powerful<br />
+                <span className="text-solana">Solana Launcher ever.</span>
               </h1>
               
               <p className="text-xl text-crypto-light max-w-2xl mx-auto mt-6 mb-8">
@@ -99,14 +99,14 @@ const Index = () => {
               </div>
             </div>
             
-            {/* Phone Image */}
+            {/* New token creator image */}
             <div className="mt-8 mb-16 flex justify-center">
               <div className="relative w-full max-w-xl">
                 <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-purple-600 via-blue-500 to-purple-500 opacity-75 blur-sm"></div>
                 <div className="relative bg-black rounded-2xl overflow-hidden">
                   <img 
-                    src="/lovable-uploads/6bdafa02-b737-41b2-9f6e-c408649daa2f.png" 
-                    alt="Infinity Launch Wallet" 
+                    src="/lovable-uploads/89e50ef3-8a8e-4372-873c-b14dac287f17.png" 
+                    alt="Solana Token Creator" 
                     className="w-full h-auto"
                   />
                 </div>
@@ -120,8 +120,8 @@ const Index = () => {
           <div className="container mx-auto px-4">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-5xl font-bold mb-4 text-white">
-                The world's most powerful<br />
-                <span className="infinity-gradient-text">Solana Launcher ever.</span>
+                Why Choose Infinity Launch?<br />
+                <span className="infinity-gradient-text">Built for you.</span>
               </h2>
               <p className="text-crypto-light max-w-2xl mx-auto mt-4">
                 Built for speed, designed for simplicity, backed by a trusted community.
@@ -178,8 +178,8 @@ const Index = () => {
           <div className="container mx-auto px-4 relative z-10">
             <div className="text-center mb-8">
               <h2 className="text-3xl md:text-4xl font-bold text-white">
-                Enhance Your Solana Token Experience<br />
-                <span className="text-crypto-light">with Ease</span>
+                Unlock the Full Potential of Your Solana Token<br />
+                <span className="text-crypto-light">Effortlessly</span>
               </h2>
               <p className="text-crypto-light max-w-2xl mx-auto mt-4">
                 Create, manage, and launch your Solana token effortlessly with secure transactions, instant deployment, and zero coding required!
@@ -189,7 +189,7 @@ const Index = () => {
             <div className="flex flex-col lg:flex-row items-center gap-8 mt-16">
               <div className="w-full lg:w-1/2">
                 <img 
-                  src="/lovable-uploads/517cba17-479e-4730-b1da-0c6fb437569c.png" 
+                  src="/lovable-uploads/4290f158-d88c-452a-8932-4745a4359ae1.png" 
                   alt="Infinity Launch App" 
                   className="w-full max-w-md mx-auto rounded-2xl shadow-2xl"
                 />
