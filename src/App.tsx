@@ -20,6 +20,9 @@ import { useMemo } from 'react';
 // Import stylesheets for the wallet
 import '@solana/wallet-adapter-react-ui/styles.css';
 
+// Import the SessionProvider
+import { SessionProvider } from '@/contexts/SessionContext';
+
 // Import our pages
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -46,17 +49,19 @@ const App = () => {
       <ConnectionProvider endpoint={endpoint}>
         <WalletProvider wallets={wallets} autoConnect>
           <WalletModalProvider>
-            <QueryClientProvider client={queryClient}>
-              <TooltipProvider>
-                <Toaster />
-                <Sonner />
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/tracker" element={<TokenTrackerPage />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </TooltipProvider>
-            </QueryClientProvider>
+            <SessionProvider>
+              <QueryClientProvider client={queryClient}>
+                <TooltipProvider>
+                  <Toaster />
+                  <Sonner />
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/tracker" element={<TokenTrackerPage />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </TooltipProvider>
+              </QueryClientProvider>
+            </SessionProvider>
           </WalletModalProvider>
         </WalletProvider>
       </ConnectionProvider>

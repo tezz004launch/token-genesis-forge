@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { createSPLToken } from '@/lib/solana/tokenService';
 import { TokenForm } from '@/types/token';
 import ImageUpload from './ImageUpload';
-import { Coins, CreditCard, Info, Loader2, Check } from 'lucide-react';
+import { Coins, CreditCard, Info, Loader2, Check, Shield, AlertTriangle } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -22,9 +21,13 @@ import {
 } from "@/components/ui/tooltip";
 import { Progress } from '@/components/ui/progress';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { useSession } from '@/contexts/SessionContext';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import AuthWallet from './AuthWallet';
 
 const STEPS = [
   'Connect Wallet',
+  'Authenticate',
   'Basic Information',
   'Supply & Decimals',
   'Permissions',
@@ -38,6 +41,7 @@ const TokenCreator: React.FC = () => {
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
   const { toast } = useToast();
+  const { isAuthenticated } = useSession();
   const [currentStep, setCurrentStep] = useState(1);
   const [isCreating, setIsCreating] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -62,8 +66,16 @@ const TokenCreator: React.FC = () => {
   });
   
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [securityLevel, setSecurityLevel] = useState<'low' | 'medium' | 'high'>('low');
 
-  // Check wallet balance
+  useEffect(() => {
+    if (publicKey && !isAuthenticated) {
+      setCurrentStep(1);
+    } else if (publicKey && isAuthenticated && currentStep < 2) {
+      setCurrentStep(2);
+    }
+  }, [publicKey, isAuthenticated, currentStep]);
+
   useEffect(() => {
     const checkBalance = async () => {
       if (publicKey && connection) {
@@ -78,11 +90,20 @@ const TokenCreator: React.FC = () => {
     
     checkBalance();
     
-    // Set up an interval to periodically check the balance
     const intervalId = setInterval(checkBalance, 10000); // every 10 seconds
     
     return () => clearInterval(intervalId);
   }, [publicKey, connection]);
+
+  useEffect(() => {
+    if (form.revokeMintAuthority && form.revokeFreezeAuthority) {
+      setSecurityLevel('high');
+    } else if (form.revokeMintAuthority || form.revokeFreezeAuthority) {
+      setSecurityLevel('medium');
+    } else {
+      setSecurityLevel('low');
+    }
+  }, [form.revokeMintAuthority, form.revokeFreezeAuthority]);
 
   useEffect(() => {
     if (isCreating && progress < 95) {
@@ -141,7 +162,7 @@ const TokenCreator: React.FC = () => {
   };
 
   const nextStep = () => {
-    if (currentStep === 1) {
+    if (currentStep === 2) {
       if (!validateForm()) {
         toast({
           title: "Validation Error",
@@ -173,7 +194,15 @@ const TokenCreator: React.FC = () => {
       return;
     }
 
-    // Check if the wallet has enough balance for the fee
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please authenticate your wallet before creating a token",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (walletBalance !== null && walletBalance < 0.05) {
       toast({
         title: "Insufficient Balance",
@@ -221,9 +250,67 @@ const TokenCreator: React.FC = () => {
     }
   };
 
+  const renderAuthStep = () => {
+    return (
+      <div className="space-y-6 py-4">
+        <div className="text-center space-y-4">
+          <Shield className="h-16 w-16 text-solana mx-auto" />
+          <h3 className="text-xl font-medium">Authenticate Your Wallet</h3>
+          <p className="text-crypto-light max-w-lg mx-auto">
+            For your security, we need to authenticate your wallet ownership.
+            This requires signing a message (not a transaction) with your wallet.
+          </p>
+        </div>
+        
+        <div className="max-w-md mx-auto bg-crypto-gray/30 p-6 rounded-lg space-y-4">
+          <p className="text-sm text-crypto-light">
+            This signature:
+          </p>
+          <ul className="space-y-2 text-sm">
+            <li className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-crypto-green" />
+              <span>Verifies you control this wallet</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-crypto-green" />
+              <span>Creates a secure session for token creation</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-crypto-green" />
+              <span>Does NOT cost any gas fees</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-crypto-green" />
+              <span>Does NOT approve any transactions</span>
+            </li>
+          </ul>
+          
+          <div className="pt-4 flex justify-center">
+            <AuthWallet />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderStepContent = () => {
+    if (currentStep === 0) {
+      return (
+        <div className="text-center space-y-6 py-6">
+          <h3 className="text-xl font-medium">Connect Your Wallet to Begin</h3>
+          <p className="text-crypto-light">
+            Please connect your Solana wallet to use our token creation service.
+          </p>
+        </div>
+      );
+    }
+
+    if (currentStep === 1) {
+      return renderAuthStep();
+    }
+    
     switch (currentStep) {
-      case 1:
+      case 2:
         return (
           <div className="space-y-6">
             <div className="space-y-2">
@@ -279,7 +366,7 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 2:
+      case 3:
         return (
           <div className="space-y-8">
             <div className="space-y-4">
@@ -346,14 +433,35 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 3:
+      case 4:
         return (
           <div className="space-y-6">
             <div className="space-y-1">
-              <h3 className="text-lg font-medium">Token Authorities</h3>
+              <h3 className="text-lg font-medium">Token Security Settings</h3>
               <p className="text-sm text-muted-foreground">
-                Configure who controls your token's behavior
+                Configure security settings for your token
               </p>
+            </div>
+
+            <div className="flex items-center justify-between mb-4">
+              <span>Security Level:</span>
+              <div className="flex items-center gap-2">
+                {securityLevel === 'low' && (
+                  <span className="px-2 py-1 bg-red-600/20 text-red-400 rounded text-xs font-medium flex items-center gap-1">
+                    <AlertTriangle size={12} /> Low
+                  </span>
+                )}
+                {securityLevel === 'medium' && (
+                  <span className="px-2 py-1 bg-yellow-600/20 text-yellow-400 rounded text-xs font-medium flex items-center gap-1">
+                    <Shield size={12} /> Medium
+                  </span>
+                )}
+                {securityLevel === 'high' && (
+                  <span className="px-2 py-1 bg-green-600/20 text-green-400 rounded text-xs font-medium flex items-center gap-1">
+                    <Shield size={12} /> High
+                  </span>
+                )}
+              </div>
             </div>
             
             <div className="space-y-4 pt-2">
@@ -407,7 +515,7 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 4:
+      case 5:
         return (
           <div className="space-y-6">
             <div className="space-y-2">
@@ -428,7 +536,7 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 5:
+      case 6:
         return (
           <div className="space-y-6">
             <div className="space-y-2">
@@ -437,6 +545,14 @@ const TokenCreator: React.FC = () => {
                 Please verify all details before proceeding to payment
               </p>
             </div>
+            
+            <Alert className="bg-green-900/20 border-green-500/20">
+              <Shield className="h-4 w-4 text-green-500" />
+              <AlertTitle>Authenticated Creation</AlertTitle>
+              <AlertDescription>
+                Your wallet has been authenticated, ensuring only you can create this token.
+              </AlertDescription>
+            </Alert>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
@@ -490,7 +606,7 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 6:
+      case 7:
         return (
           <div className="space-y-6">
             <div className="space-y-2">
@@ -499,6 +615,14 @@ const TokenCreator: React.FC = () => {
                 Complete payment to create your token
               </p>
             </div>
+            
+            <Alert className="bg-green-900/20 border-green-500/20">
+              <Shield className="h-4 w-4 text-green-500" />
+              <AlertTitle>Secure Transaction</AlertTitle>
+              <AlertDescription>
+                This transaction is protected by wallet authentication and will require your approval.
+              </AlertDescription>
+            </Alert>
             
             <div className="bg-crypto-gray/30 p-6 rounded-md">
               <div className="flex items-center justify-between mb-4">
@@ -569,7 +693,7 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 7:
+      case 8:
         return (
           <div className="text-center space-y-6 py-6">
             <div className="w-20 h-20 mx-auto rounded-full border-2 border-crypto-green/30 flex items-center justify-center bg-crypto-green/10">
@@ -577,6 +701,14 @@ const TokenCreator: React.FC = () => {
             </div>
             
             <h3 className="text-2xl font-medium">Token Created Successfully!</h3>
+            
+            <Alert className="bg-green-900/20 border-green-500/20 max-w-md mx-auto">
+              <Shield className="h-4 w-4 text-green-500" />
+              <AlertTitle>Authenticated Creation Complete</AlertTitle>
+              <AlertDescription>
+                Your token was created securely with your authenticated wallet.
+              </AlertDescription>
+            </Alert>
             
             <div className="bg-crypto-gray/30 p-6 rounded-md max-w-md mx-auto">
               <div className="space-y-4">
@@ -639,18 +771,18 @@ const TokenCreator: React.FC = () => {
         <CardContent className="pt-6">
           {renderStepContent()}
         </CardContent>
-        {currentStep !== STEPS.length - 1 && currentStep !== 6 && (
+        {currentStep !== STEPS.length - 1 && currentStep !== 7 && (
           <CardFooter className="flex justify-between border-t border-gray-800 pt-4">
             <Button 
               variant="outline" 
               onClick={prevStep}
-              disabled={currentStep === 1}
+              disabled={currentStep === 1 || (currentStep === 2 && isAuthenticated)}
             >
               Back
             </Button>
             <Button 
               onClick={nextStep}
-              disabled={currentStep === STEPS.length - 2 || isCreating}
+              disabled={(currentStep === 1 && !isAuthenticated) || currentStep === STEPS.length - 2 || isCreating}
             >
               Continue
             </Button>
