@@ -23,4 +23,7 @@ export interface TokenData {
   createdAt: string;
   owner: string;
   imageUrl?: string;
+  website?: string;
+  twitter?: string;
+  telegram?: string;
 }

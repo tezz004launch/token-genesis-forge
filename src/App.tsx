@@ -27,6 +27,7 @@ import { SessionProvider } from '@/contexts/SessionContext';
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import TokenTrackerPage from "./pages/TokenTrackerPage";
+import TokenCreationPage from "./pages/TokenCreationPage";
 
 // Initialize QueryClient for React Query
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => {
                   <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/tracker" element={<TokenTrackerPage />} />
+                    <Route path="/create-token" element={<TokenCreationPage />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </TooltipProvider>
