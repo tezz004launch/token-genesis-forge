@@ -1,4 +1,3 @@
-
 import React, { Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Rocket } from 'lucide-react';
@@ -43,7 +42,7 @@ const HeroSection = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-              <Link to="/tracker">
+              <Link to="/create-token">
                 <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white py-6 text-lg h-auto font-medium w-full sm:w-auto">
                   Create Your Token <ArrowRight className="ml-2" />
                 </Button>

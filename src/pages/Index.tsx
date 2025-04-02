@@ -77,6 +77,23 @@ const Index = () => {
           </section>
         )}
         
+        {/* Add a CTA section before FAQs for logged in users */}
+        {publicKey && (
+          <section className="py-16 bg-crypto-dark/80 backdrop-blur-md">
+            <div className="container mx-auto px-4 text-center">
+              <h2 className="text-3xl font-bold mb-6">Ready to Create Your Token?</h2>
+              <p className="text-xl text-crypto-light mb-8 max-w-2xl mx-auto">
+                Your wallet is connected. You can now create your Solana token with just a few clicks.
+              </p>
+              <Link to="/create-token">
+                <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white py-6 text-lg h-auto font-medium">
+                  Create Your Token Now <ArrowRight className="ml-2" />
+                </Button>
+              </Link>
+            </div>
+          </section>
+        )}
+        
         <FaqSection faqs={faqs} />
       </main>
       

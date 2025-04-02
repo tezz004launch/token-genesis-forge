@@ -45,7 +45,7 @@ const TokenTrackerPage = () => {
                     You haven't created any tokens yet or they are not associated with this wallet.
                   </p>
                   
-                  <Link to="/">
+                  <Link to="/create-token">
                     <Button>
                       Create Your First Token
                     </Button>
