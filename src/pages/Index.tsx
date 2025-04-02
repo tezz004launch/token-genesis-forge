@@ -64,11 +64,11 @@ const Index = () => {
             {/* Starfield Background */}
             <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1470813740244-df37b8c1edcb')] bg-cover bg-center opacity-20"></div>
             
-            {/* Moon Image */}
+            {/* Moon/Planet Image */}
             <div className="absolute top-10 right-0 md:right-10 md:top-20 w-32 h-32 md:w-72 md:h-72 rounded-full overflow-hidden animate-float">
               <img 
                 src="/lovable-uploads/2d6681b2-4d62-499d-a162-8dd3bb8a6bcc.png" 
-                alt="Moon" 
+                alt="Infinity Launch" 
                 className="w-full h-full object-cover"
               />
             </div>
@@ -82,7 +82,7 @@ const Index = () => {
             <div className="flex flex-col items-center text-center max-w-5xl mx-auto mb-16">
               <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4 text-white leading-tight">
                 Launch your <span className="text-solana">$Solana</span> Token
-                <div className="mt-2">Take it to the <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-blue-400 to-purple-500">Moon!</span></div>
+                <div className="mt-2">Take it to <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-blue-400 to-purple-500">Infinity!</span></div>
               </h1>
               
               <p className="text-xl text-crypto-light max-w-2xl mx-auto mt-6 mb-8">
@@ -106,7 +106,7 @@ const Index = () => {
                 <div className="relative bg-black rounded-2xl overflow-hidden">
                   <img 
                     src="/lovable-uploads/6bdafa02-b737-41b2-9f6e-c408649daa2f.png" 
-                    alt="Token Wallet" 
+                    alt="Infinity Launch Wallet" 
                     className="w-full h-auto"
                   />
                 </div>
@@ -190,7 +190,7 @@ const Index = () => {
               <div className="w-full lg:w-1/2">
                 <img 
                   src="/lovable-uploads/517cba17-479e-4730-b1da-0c6fb437569c.png" 
-                  alt="Wallet App" 
+                  alt="Infinity Launch App" 
                   className="w-full max-w-md mx-auto rounded-2xl shadow-2xl"
                 />
               </div>
