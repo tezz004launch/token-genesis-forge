@@ -8,11 +8,15 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 // Solana wallet imports
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
-import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
   TorusWalletAdapter,
+  BackpackWalletAdapter,
+  LedgerWalletAdapter,
+  CoinbaseWalletAdapter,
+  TrustWalletAdapter,
+  ExodusWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
 import { clusterApiUrl } from '@solana/web3.js';
 import { useMemo } from 'react';
@@ -40,6 +44,11 @@ const App = () => {
     () => [
       new PhantomWalletAdapter(),
       new SolflareWalletAdapter(),
+      new BackpackWalletAdapter(),
+      new CoinbaseWalletAdapter(),
+      new TrustWalletAdapter(),
+      new LedgerWalletAdapter(),
+      new ExodusWalletAdapter(),
       new TorusWalletAdapter(),
     ],
     []
@@ -49,22 +58,20 @@ const App = () => {
     <BrowserRouter>
       <ConnectionProvider endpoint={endpoint}>
         <WalletProvider wallets={wallets} autoConnect>
-          <WalletModalProvider>
-            <SessionProvider>
-              <QueryClientProvider client={queryClient}>
-                <TooltipProvider>
-                  <Toaster />
-                  <Sonner />
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/tracker" element={<TokenTrackerPage />} />
-                    <Route path="/create-token" element={<TokenCreationPage />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </TooltipProvider>
-              </QueryClientProvider>
-            </SessionProvider>
-          </WalletModalProvider>
+          <SessionProvider>
+            <QueryClientProvider client={queryClient}>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/tracker" element={<TokenTrackerPage />} />
+                  <Route path="/create-token" element={<TokenCreationPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </TooltipProvider>
+            </QueryClientProvider>
+          </SessionProvider>
         </WalletProvider>
       </ConnectionProvider>
     </BrowserRouter>
