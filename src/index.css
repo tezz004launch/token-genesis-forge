@@ -108,14 +108,24 @@
   }
 }
 
-/* Generate random stars */
-@for $i from 1 through 50 {
-  .star:nth-child(#{$i}) {
-    top: #{random(100)}%;
-    left: #{random(100)}%;
-    width: #{random(3)}px;
-    height: #{random(3)}px;
-    animation-delay: #{random(5000)}ms;
-    animation-duration: #{3000 + random(2000)}ms;
-  }
-}
+/* Static star classes instead of dynamic generation */
+.star:nth-child(1) { top: 15%; left: 25%; width: 2px; height: 2px; animation-delay: 100ms; animation-duration: 3500ms; }
+.star:nth-child(2) { top: 45%; left: 80%; width: 1px; height: 1px; animation-delay: 700ms; animation-duration: 4200ms; }
+.star:nth-child(3) { top: 78%; left: 10%; width: 3px; height: 3px; animation-delay: 1500ms; animation-duration: 3800ms; }
+.star:nth-child(4) { top: 23%; left: 65%; width: 2px; height: 2px; animation-delay: 2000ms; animation-duration: 4500ms; }
+.star:nth-child(5) { top: 56%; left: 37%; width: 1px; height: 1px; animation-delay: 800ms; animation-duration: 3300ms; }
+.star:nth-child(6) { top: 89%; left: 78%; width: 2px; height: 2px; animation-delay: 300ms; animation-duration: 4800ms; }
+.star:nth-child(7) { top: 34%; left: 12%; width: 3px; height: 3px; animation-delay: 1200ms; animation-duration: 3600ms; }
+.star:nth-child(8) { top: 67%; left: 92%; width: 1px; height: 1px; animation-delay: 500ms; animation-duration: 4000ms; }
+.star:nth-child(9) { top: 12%; left: 45%; width: 2px; height: 2px; animation-delay: 1800ms; animation-duration: 3200ms; }
+.star:nth-child(10) { top: 84%; left: 23%; width: 1px; height: 1px; animation-delay: 900ms; animation-duration: 4700ms; }
+.star:nth-child(11) { top: 38%; left: 57%; width: 2px; height: 2px; animation-delay: 1000ms; animation-duration: 3900ms; }
+.star:nth-child(12) { top: 72%; left: 8%; width: 3px; height: 3px; animation-delay: 600ms; animation-duration: 4300ms; }
+.star:nth-child(13) { top: 29%; left: 73%; width: 1px; height: 1px; animation-delay: 1300ms; animation-duration: 3700ms; }
+.star:nth-child(14) { top: 95%; left: 49%; width: 2px; height: 2px; animation-delay: 400ms; animation-duration: 4400ms; }
+.star:nth-child(15) { top: 53%; left: 18%; width: 1px; height: 1px; animation-delay: 1700ms; animation-duration: 3100ms; }
+.star:nth-child(16) { top: 19%; left: 86%; width: 2px; height: 2px; animation-delay: 1100ms; animation-duration: 4600ms; }
+.star:nth-child(17) { top: 61%; left: 33%; width: 3px; height: 3px; animation-delay: 2200ms; animation-duration: 3400ms; }
+.star:nth-child(18) { top: 92%; left: 68%; width: 1px; height: 1px; animation-delay: 1600ms; animation-duration: 4100ms; }
+.star:nth-child(19) { top: 42%; left: 5%; width: 2px; height: 2px; animation-delay: 200ms; animation-duration: 3000ms; }
+.star:nth-child(20) { top: 76%; left: 51%; width: 1px; height: 1px; animation-delay: 1900ms; animation-duration: 4900ms; }
