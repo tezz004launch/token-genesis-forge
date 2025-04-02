@@ -1,9 +1,14 @@
+
 import React, { Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Rocket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import AppShowcase from './AppShowcase';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const HeroSection = () => {
+  const isMobile = useIsMobile();
+  
   return (
     <section className="relative pt-24 pb-20 md:pt-32 md:pb-28 overflow-hidden">
       {/* Background effects */}
@@ -24,24 +29,24 @@ const HeroSection = () => {
       </div>
       
       <div className="container mx-auto relative z-10 px-4">
-        <div className="flex flex-col items-center text-center">
+        <div className="flex flex-col lg:flex-row items-center gap-8">
           <div className="flex flex-col max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-sm mb-6 mx-auto">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-sm mb-6 mx-auto lg:mx-0">
               <Rocket size={14} className="text-purple-400" />
               <span className="text-purple-200">Powered by Solana</span>
             </div>
             
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white leading-tight">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white leading-tight text-center lg:text-left">
               Launch Your <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-blue-500 to-purple-400">Solana Token</span> 
               <br className="hidden lg:block" /> Within Minutes
             </h1>
             
-            <p className="text-xl text-crypto-light max-w-2xl mx-auto mb-8 leading-relaxed">
+            <p className="text-xl text-crypto-light max-w-2xl mx-auto lg:mx-0 mb-8 leading-relaxed text-center lg:text-left">
               Create, deploy, and manage your custom SPL token with zero coding knowledge.
               Built for creators, communities, and businesses.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-8">
               <Link to="/create-token">
                 <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white py-6 text-lg h-auto font-medium w-full sm:w-auto">
                   Create Your Token <ArrowRight className="ml-2" />
@@ -54,10 +59,15 @@ const HeroSection = () => {
               </a>
             </div>
           </div>
+
+          {/* App Showcase */}
+          <div className={`flex-1 ${isMobile ? 'mt-4' : ''}`}>
+            <AppShowcase />
+          </div>
         </div>
         
         {/* Trusted by section */}
-        <div className="mt-20 text-center">
+        <div className="mt-12 text-center">
           <p className="text-crypto-light text-sm uppercase tracking-wider mb-6">Trusted by builders across the Solana ecosystem</p>
           <div className="flex flex-wrap justify-center gap-8 items-center opacity-70">
             <div className="w-32 h-12 flex items-center justify-center">
