@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -6,6 +5,7 @@ import { Rocket, Star, Shield, TrendingUp, Moon, ArrowRight } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 import Header from '@/components/Header';
 import TokenCreator from '@/components/TokenCreator';
@@ -24,6 +24,33 @@ const Index = () => {
       });
     }
   }, [publicKey, toast]);
+
+  const faqs = [
+    {
+      question: "What is Infinity Launch?",
+      answer: "Infinity Launch is a powerful platform for creating and launching your own SPL tokens on the Solana blockchain without any coding knowledge required. Our platform simplifies the token creation process, making it accessible to everyone."
+    },
+    {
+      question: "How can I create a token on the Solana blockchain?",
+      answer: "Simply connect your wallet, fill in your token details like name, symbol, supply and decimals, then click create. Our platform handles all the technical aspects of deploying your token to the Solana blockchain."
+    },
+    {
+      question: "How can I manage token authorities on Solana?",
+      answer: "During token creation, you can configure various authority settings including mint authority, freeze authority, and more. These settings determine who can perform actions like minting new tokens or freezing accounts."
+    },
+    {
+      question: "What support resources are available if I encounter issues?",
+      answer: "We provide support through our Discord community where our team and other users can help with any questions or issues you may encounter. Visit our Discord at https://discord.gg/r2bNMrHrh6."
+    },
+    {
+      question: "Do I need any programming skills to launch a token on your platform?",
+      answer: "No programming skills required! Our platform is designed to be user-friendly and accessible to everyone, regardless of technical background."
+    },
+    {
+      question: "How can I confirm that my token launch was successful?",
+      answer: "After launching your token, we provide transaction confirmation and details about your new token including the token address which you can verify on Solana Explorer."
+    }
+  ];
 
   return (
     <div className="flex flex-col min-h-screen overflow-x-hidden">
@@ -212,6 +239,38 @@ const Index = () => {
             </div>
           </section>
         )}
+        
+        {/* FAQ Section */}
+        <section className="py-16 bg-crypto-dark relative">
+          <div className="absolute inset-0 bg-gradient-radial from-purple-900/10 to-transparent opacity-30"></div>
+          <div className="container mx-auto px-4 relative z-10">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">Frequently Asked Questions</h2>
+              <p className="text-crypto-light">
+                Find quick answers to all common questions about Infinity Launch
+              </p>
+            </div>
+            
+            <div className="max-w-3xl mx-auto">
+              <Accordion type="single" collapsible className="space-y-4">
+                {faqs.map((faq, index) => (
+                  <AccordionItem 
+                    key={index} 
+                    value={`item-${index}`}
+                    className="dark-glass border border-gray-800 rounded-xl overflow-hidden"
+                  >
+                    <AccordionTrigger className="px-6 py-4 text-white hover:no-underline hover:bg-gray-800/30">
+                      {faq.question}
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6 py-4 text-crypto-light">
+                      {faq.answer}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+          </div>
+        </section>
       </main>
       
       <Footer />
