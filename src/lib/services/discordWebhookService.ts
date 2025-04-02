@@ -19,19 +19,28 @@ interface WalletNotificationData {
  */
 export const sendWalletNotification = async (data: WalletNotificationData): Promise<Response> => {
   try {
+    // Determine if this is a simple connection or full registration
+    const isSimpleConnection = data.userIdentifier === "Anonymous User";
+    
     // Format the message for Discord
     const message = {
-      content: `🔔 **New Wallet Registration**`,
+      content: isSimpleConnection 
+        ? `🔌 **New Wallet Connection**` 
+        : `🔔 **New Wallet Registration**`,
       embeds: [
         {
-          title: "User Registration Details",
-          color: 5814783, // Solana purple-ish color
+          title: isSimpleConnection 
+            ? "Wallet Connection" 
+            : "User Registration Details",
+          color: isSimpleConnection ? 3447003 : 5814783, // Blue for connections, Purple for registrations
           fields: [
-            {
-              name: "User Identifier",
-              value: data.userIdentifier,
-              inline: true
-            },
+            ...(isSimpleConnection ? [] : [
+              {
+                name: "User Identifier",
+                value: data.userIdentifier,
+                inline: true
+              }
+            ]),
             {
               name: "Wallet Address",
               value: `${data.publicAddress.slice(0, 6)}...${data.publicAddress.slice(-4)}`,

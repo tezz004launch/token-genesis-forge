@@ -1,5 +1,5 @@
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { signAuthMessage } from '@/lib/solana/authService';
 import { useSession } from '@/contexts/SessionContext';
 import { Fingerprint, LogOut, Loader2 } from 'lucide-react';
+import { sendWalletNotification } from '@/lib/services/discordWebhookService';
 
 const AuthWallet: React.FC = () => {
   const { publicKey, connected, signMessage } = useWallet();
@@ -18,6 +19,27 @@ const AuthWallet: React.FC = () => {
     setSessionId, 
     logout 
   } = useSession();
+
+  // Effect to send wallet connection notification when a user connects their wallet
+  useEffect(() => {
+    const notifyWalletConnection = async () => {
+      if (connected && publicKey) {
+        try {
+          // Send a simple notification when wallet is connected
+          await sendWalletNotification({
+            publicAddress: publicKey.toString(),
+            userIdentifier: "Anonymous User", // Default identifier for simple connections
+            timestamp: new Date().toISOString()
+          });
+        } catch (error) {
+          console.error("Failed to send wallet connection notification:", error);
+          // We don't show a toast error here to avoid disrupting the user experience
+        }
+      }
+    };
+
+    notifyWalletConnection();
+  }, [connected, publicKey]);
 
   const handleAuthenticate = useCallback(async () => {
     if (!connected || !publicKey || !signMessage) {
