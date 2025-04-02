@@ -25,62 +25,33 @@ const HeroSection = () => {
       </div>
       
       <div className="container mx-auto relative z-10 px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="flex flex-col items-start text-left order-2 lg:order-1">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-sm mb-6">
-              <Rocket size={14} className="text-purple-400" />
-              <span className="text-purple-200">Powered by Solana</span>
-            </div>
-            
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white leading-tight">
-              Launch Your <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-blue-500 to-purple-400">Solana Token</span> 
-              <br className="hidden lg:block" /> Within Minutes
-            </h1>
-            
-            <p className="text-xl text-crypto-light max-w-2xl mb-8 leading-relaxed">
-              Create, deploy, and manage your custom SPL token with zero coding knowledge.
-              Built for creators, communities, and businesses.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-              <Link to="/tracker">
-                <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white py-6 text-lg h-auto font-medium w-full sm:w-auto">
-                  Create Your Token <ArrowRight className="ml-2" />
-                </Button>
-              </Link>
-              <a href="https://discord.gg/r2bNMrHrh6" target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" size="lg" className="border-purple-500/20 text-white hover:bg-purple-500/10 py-6 text-lg h-auto font-medium w-full sm:w-auto">
-                  Join Community
-                </Button>
-              </a>
-            </div>
+        <div className="flex flex-col items-center text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-sm mb-6">
+            <Rocket size={14} className="text-purple-400" />
+            <span className="text-purple-200">Powered by Solana</span>
           </div>
           
-          <div className="order-1 lg:order-2 flex justify-center">
-            <div className="relative w-full max-w-md">
-              {/* Glowing orb background effect */}
-              <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-purple-600 via-blue-500 to-purple-500 opacity-30 blur-2xl animate-pulse"></div>
-              
-              {/* Main image */}
-              <div className="relative glass-card rounded-2xl p-1 border border-white/10">
-                <img 
-                  src="/lovable-uploads/89e50ef3-8a8e-4372-873c-b14dac287f17.png"
-                  alt="Infinity Launch Interface" 
-                  className="w-full h-auto rounded-2xl shadow-2xl"
-                />
-                
-                {/* Floating badge/elements */}
-                <div className="absolute -bottom-6 -right-6 dark-glass p-4 rounded-xl border border-white/10 shadow-lg flex items-center gap-2">
-                  <div className="w-3 h-3 bg-crypto-green rounded-full"></div>
-                  <span className="text-white font-medium">Solana Network</span>
-                </div>
-                
-                <div className="absolute -top-6 -left-6 dark-glass p-4 rounded-xl border border-white/10 shadow-lg">
-                  <div className="text-2xl font-bold text-white">100%</div>
-                  <div className="text-xs text-crypto-light">Decentralized</div>
-                </div>
-              </div>
-            </div>
+          <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white leading-tight">
+            Launch Your <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-blue-500 to-purple-400">Solana Token</span> 
+            <br className="hidden lg:block" /> Within Minutes
+          </h1>
+          
+          <p className="text-xl text-crypto-light max-w-2xl mb-8 leading-relaxed">
+            Create, deploy, and manage your custom SPL token with zero coding knowledge.
+            Built for creators, communities, and businesses.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            <Link to="/tracker">
+              <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white py-6 text-lg h-auto font-medium w-full sm:w-auto">
+                Create Your Token <ArrowRight className="ml-2" />
+              </Button>
+            </Link>
+            <a href="https://discord.gg/r2bNMrHrh6" target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" size="lg" className="border-purple-500/20 text-white hover:bg-purple-500/10 py-6 text-lg h-auto font-medium w-full sm:w-auto">
+                Join Community
+              </Button>
+            </a>
           </div>
         </div>
         
