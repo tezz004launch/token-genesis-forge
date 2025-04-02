@@ -29,9 +29,9 @@ function PhoneModel() {
       >
         <boxGeometry args={[3, 6, 0.2]} />
         <meshStandardMaterial 
-          color="#1a1a1a" 
-          metalness={0.5}
-          roughness={0.2}
+          color="#14151A" 
+          metalness={0.3}
+          roughness={0.4}
         />
       </mesh>
       
@@ -81,8 +81,8 @@ export default function Phone3D() {
         onError={() => setHasError(true)}
       >
         <color attach="background" args={['transparent']} />
-        <ambientLight intensity={0.7} />
-        <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
+        <ambientLight intensity={0.5} />
+        <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={0.8} />
         
         <PresentationControls
           global
