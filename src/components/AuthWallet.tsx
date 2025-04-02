@@ -1,12 +1,12 @@
 
 import React, { useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { signAuthMessage } from '@/lib/solana/authService';
 import { useSession } from '@/contexts/SessionContext';
 import { Fingerprint, LogOut, Loader2 } from 'lucide-react';
-import CustomWalletButton from './CustomWalletButton';
 
 const AuthWallet: React.FC = () => {
   const { publicKey, connected, signMessage } = useWallet();
@@ -59,7 +59,7 @@ const AuthWallet: React.FC = () => {
   }, [connected, publicKey, signMessage, toast, setAuthenticating, setSessionId]);
 
   if (!connected) {
-    return <CustomWalletButton />;
+    return <WalletMultiButton className="!bg-gradient-to-r from-solana to-crypto-blue hover:opacity-90 transition-opacity" />;
   }
 
   if (isAuthenticated) {

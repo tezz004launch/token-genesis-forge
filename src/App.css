@@ -1,14 +1,57 @@
 
 #root {
-  width: 1920px;
-  height: 1080px;
+  max-width: 1280px;
   margin: 0 auto;
   text-align: center;
-  overflow: hidden;
 }
 
-/* Only keeping unique animations that don't conflict with index.css */
-/* Infinity card hover effects */
+/* Infinity Launch animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(153, 69, 255, 0.4); }
+  50% { box-shadow: 0 0 30px rgba(153, 69, 255, 0.7); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+/* Token animation */
+@keyframes float {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+  100% { transform: translateY(0); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, 
+    rgba(153, 69, 255, 0.1) 0%, 
+    rgba(0, 194, 255, 0.2) 25%,
+    rgba(153, 69, 255, 0.1) 50%,
+    rgba(0, 194, 255, 0.2) 75%,
+    rgba(153, 69, 255, 0.1) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
+
 .infinity-card-hover {
   transition: all 0.3s ease;
 }
@@ -92,6 +135,22 @@
   opacity: 0.2;
 }
 
+/* Phone device frame */
+.device-frame {
+  position: relative;
+  border-radius: 2rem;
+  padding: 1px;
+  background: linear-gradient(45deg, #9945FF, #00C2FF);
+  box-shadow: 0px 0px 30px rgba(153, 69, 255, 0.5);
+}
+
+.device-frame-content {
+  background: #000;
+  border-radius: 2rem;
+  overflow: hidden;
+  position: relative;
+}
+
 /* Planet element */
 .planet {
   border-radius: 50%;
@@ -122,13 +181,4 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: shimmer 2s linear infinite;
-}
-
-/* Fixed size wrapper for 1920x1080 layout */
-.fixed-size-wrapper {
-  width: 1920px;
-  height: 1080px;
-  margin: 0 auto;
-  position: relative;
-  overflow: auto;
 }

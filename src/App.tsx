@@ -8,13 +8,11 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 // Solana wallet imports
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
+import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
   TorusWalletAdapter,
-  LedgerWalletAdapter,
-  CoinbaseWalletAdapter,
-  TrustWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
 import { clusterApiUrl } from '@solana/web3.js';
 import { useMemo } from 'react';
@@ -42,19 +40,16 @@ const App = () => {
     () => [
       new PhantomWalletAdapter(),
       new SolflareWalletAdapter(),
-      new CoinbaseWalletAdapter(),
-      new TrustWalletAdapter(),
-      new LedgerWalletAdapter(),
       new TorusWalletAdapter(),
     ],
     []
   );
 
   return (
-    <div className="fixed-size-wrapper">
-      <BrowserRouter>
-        <ConnectionProvider endpoint={endpoint}>
-          <WalletProvider wallets={wallets} autoConnect>
+    <BrowserRouter>
+      <ConnectionProvider endpoint={endpoint}>
+        <WalletProvider wallets={wallets} autoConnect>
+          <WalletModalProvider>
             <SessionProvider>
               <QueryClientProvider client={queryClient}>
                 <TooltipProvider>
@@ -69,10 +64,10 @@ const App = () => {
                 </TooltipProvider>
               </QueryClientProvider>
             </SessionProvider>
-          </WalletProvider>
-        </ConnectionProvider>
-      </BrowserRouter>
-    </div>
+          </WalletModalProvider>
+        </WalletProvider>
+      </ConnectionProvider>
+    </BrowserRouter>
   );
 };
 
