@@ -12,11 +12,9 @@ import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
   TorusWalletAdapter,
-  BackpackWalletAdapter,
   LedgerWalletAdapter,
   CoinbaseWalletAdapter,
   TrustWalletAdapter,
-  ExodusWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
 import { clusterApiUrl } from '@solana/web3.js';
 import { useMemo } from 'react';
@@ -44,11 +42,9 @@ const App = () => {
     () => [
       new PhantomWalletAdapter(),
       new SolflareWalletAdapter(),
-      new BackpackWalletAdapter(),
       new CoinbaseWalletAdapter(),
       new TrustWalletAdapter(),
       new LedgerWalletAdapter(),
-      new ExodusWalletAdapter(),
       new TorusWalletAdapter(),
     ],
     []
