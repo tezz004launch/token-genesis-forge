@@ -1,27 +1,67 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+
+// Solana wallet imports
+import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
+import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
+import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
+import {
+  PhantomWalletAdapter,
+  SolflareWalletAdapter,
+  TorusWalletAdapter,
+} from '@solana/wallet-adapter-wallets';
+import { clusterApiUrl } from '@solana/web3.js';
+import { useMemo } from 'react';
+
+// Import stylesheets for the wallet
+import '@solana/wallet-adapter-react-ui/styles.css';
+
+// Import our pages
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import TokenTrackerPage from "./pages/TokenTrackerPage";
 
+// Initialize QueryClient for React Query
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  // Set up Solana network and wallet
+  const network = WalletAdapterNetwork.Devnet;
+  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+  const wallets = useMemo(
+    () => [
+      new PhantomWalletAdapter(),
+      new SolflareWalletAdapter(),
+      new TorusWalletAdapter(),
+    ],
+    []
+  );
+
+  return (
+    <ConnectionProvider endpoint={endpoint}>
+      <WalletProvider wallets={wallets} autoConnect>
+        <WalletModalProvider>
+          <QueryClientProvider client={queryClient}>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/tracker" element={<TokenTrackerPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </QueryClientProvider>
+        </WalletModalProvider>
+      </WalletProvider>
+    </ConnectionProvider>
+  );
+};
 
 export default App;
