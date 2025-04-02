@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Plus } from 'lucide-react';
 
 interface FaqSectionProps {
   faqs: Array<{
@@ -24,15 +25,16 @@ const FaqSection: React.FC<FaqSectionProps> = ({ faqs }) => {
         </div>
         
         <div className="max-w-3xl mx-auto">
-          <Accordion type="single" collapsible className="space-y-6">
+          <Accordion type="single" collapsible className="space-y-4">
             {faqs.map((faq, index) => (
               <AccordionItem 
                 key={index} 
                 value={`item-${index}`}
-                className="bg-white/5 backdrop-blur-sm border border-purple-500/10 rounded-xl overflow-hidden"
+                className="bg-white/5 backdrop-blur-sm border border-purple-500/20 rounded-xl overflow-hidden"
               >
-                <AccordionTrigger className="px-6 py-5 text-white text-lg hover:no-underline hover:bg-white/5">
-                  {faq.question}
+                <AccordionTrigger className="px-6 py-5 text-white text-lg hover:no-underline hover:bg-white/5 flex justify-between">
+                  <span>{faq.question}</span>
+                  <Plus className="shrink-0 text-purple-400 transition-transform duration-200" />
                 </AccordionTrigger>
                 <AccordionContent className="px-6 py-5 text-crypto-light">
                   {faq.answer}
