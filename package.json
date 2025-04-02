@@ -39,6 +39,7 @@
     "@radix-ui/react-toggle": "^1.1.0",
     "@radix-ui/react-toggle-group": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.4",
+    "@react-three/drei": "^9.88.13",
     "@solana/spl-token": "^0.3.11",
     "@solana/wallet-adapter-react": "^0.15.36",
     "@solana/wallet-adapter-react-ui": "^0.9.35",
@@ -64,6 +65,7 @@
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
+    "three": "^0.157.0",
     "tweetnacl": "^1.0.3",
     "vaul": "^0.9.3",
     "zod": "^3.23.8"

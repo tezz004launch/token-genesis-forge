@@ -3,6 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Rocket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import Phone3D from './Phone3D';
 
 const HeroSection = () => {
   return (
@@ -25,33 +26,40 @@ const HeroSection = () => {
       </div>
       
       <div className="container mx-auto relative z-10 px-4">
-        <div className="flex flex-col items-center text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-sm mb-6">
-            <Rocket size={14} className="text-purple-400" />
-            <span className="text-purple-200">Powered by Solana</span>
+        <div className="flex flex-col md:flex-row items-center text-center md:text-left">
+          <div className="flex flex-col md:w-1/2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-sm mb-6 mx-auto md:mx-0">
+              <Rocket size={14} className="text-purple-400" />
+              <span className="text-purple-200">Powered by Solana</span>
+            </div>
+            
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white leading-tight">
+              Launch Your <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-blue-500 to-purple-400">Solana Token</span> 
+              <br className="hidden lg:block" /> Within Minutes
+            </h1>
+            
+            <p className="text-xl text-crypto-light max-w-2xl mb-8 leading-relaxed">
+              Create, deploy, and manage your custom SPL token with zero coding knowledge.
+              Built for creators, communities, and businesses.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto mb-12 md:mb-0">
+              <Link to="/tracker">
+                <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white py-6 text-lg h-auto font-medium w-full sm:w-auto">
+                  Create Your Token <ArrowRight className="ml-2" />
+                </Button>
+              </Link>
+              <a href="https://discord.gg/r2bNMrHrh6" target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="lg" className="border-purple-500/20 text-white hover:bg-purple-500/10 py-6 text-lg h-auto font-medium w-full sm:w-auto">
+                  Join Community
+                </Button>
+              </a>
+            </div>
           </div>
           
-          <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white leading-tight">
-            Launch Your <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-blue-500 to-purple-400">Solana Token</span> 
-            <br className="hidden lg:block" /> Within Minutes
-          </h1>
-          
-          <p className="text-xl text-crypto-light max-w-2xl mb-8 leading-relaxed">
-            Create, deploy, and manage your custom SPL token with zero coding knowledge.
-            Built for creators, communities, and businesses.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-            <Link to="/tracker">
-              <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white py-6 text-lg h-auto font-medium w-full sm:w-auto">
-                Create Your Token <ArrowRight className="ml-2" />
-              </Button>
-            </Link>
-            <a href="https://discord.gg/r2bNMrHrh6" target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" size="lg" className="border-purple-500/20 text-white hover:bg-purple-500/10 py-6 text-lg h-auto font-medium w-full sm:w-auto">
-                Join Community
-              </Button>
-            </a>
+          {/* 3D Phone Component */}
+          <div className="md:w-1/2 mt-8 md:mt-0">
+            <Phone3D />
           </div>
         </div>
         
