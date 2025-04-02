@@ -1,3 +1,4 @@
+
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -12,10 +13,10 @@
   transition: filter 300ms;
 }
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+  filter: drop-shadow(0 0 2em rgba(147, 51, 234, 0.6));
 }
 .logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  filter: drop-shadow(0 0 2em rgba(79, 70, 229, 0.6));
 }
 
 @keyframes logo-spin {
@@ -39,4 +40,22 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* Infinity Launch animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.infinity-card-hover {
+  transition: all 0.3s ease;
+}
+
+.infinity-card-hover:hover {
+  transform: translateY(-5px);
 }
