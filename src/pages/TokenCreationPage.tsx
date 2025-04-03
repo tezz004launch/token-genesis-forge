@@ -9,6 +9,7 @@ import ConnectWalletPrompt from '@/components/ConnectWalletPrompt';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
+import { StepConfigProvider } from '@/contexts/StepConfigContext';
 
 const TokenCreationPage = () => {
   const navigate = useNavigate();
@@ -59,13 +60,15 @@ const TokenCreationPage = () => {
           </AlertDescription>
         </Alert>
 
-        {!connected ? (
-          <ConnectWalletPrompt>
-            Please connect your wallet to create a token. Once created, 100% of the token supply will be sent to your wallet.
-          </ConnectWalletPrompt>
-        ) : (
-          <TokenCreator />
-        )}
+        <StepConfigProvider>
+          {!connected ? (
+            <ConnectWalletPrompt>
+              Please connect your wallet to create a token. Once created, 100% of the token supply will be sent to your wallet.
+            </ConnectWalletPrompt>
+          ) : (
+            <TokenCreator />
+          )}
+        </StepConfigProvider>
       </div>
     </div>
   );
