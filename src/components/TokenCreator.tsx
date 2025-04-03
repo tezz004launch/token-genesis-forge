@@ -31,11 +31,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Progress } from '@/components/ui/progress';
-import { Connection } from '@solana/web3.js';
+import { Connection, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useSession } from '@/contexts/SessionContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import AuthWallet from './AuthWallet';
 import TokenSummary from './TokenSummary';
+
+const PLATFORM_FEE = 0.05 * LAMPORTS_PER_SOL;
+const FEE_RECIPIENT = "6DLm5CnfXZjgi2Sjxr9mdaaCwqE3Syr1F4M2kTLYmLJA";
 
 const STEPS = [
   'Connect Wallet',
