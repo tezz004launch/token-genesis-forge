@@ -2,20 +2,22 @@
 import React from 'react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, WifiOff, Zap, Clock, RotateCw } from 'lucide-react';
+import { AlertTriangle, WifiOff, Zap, Clock, RotateCw, ArrowRight } from 'lucide-react';
 
 interface ConnectionStatusProps {
   connectionState: 'connected' | 'unstable' | 'failed';
   switchRpcEndpoint: () => void;
   currentRpcIndex: number;
   totalEndpoints: number;
+  onRetry?: () => void;
 }
 
 const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   connectionState,
   switchRpcEndpoint,
   currentRpcIndex,
-  totalEndpoints
+  totalEndpoints,
+  onRetry
 }) => {
   if (connectionState === 'connected') {
     return null;
@@ -52,6 +54,17 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
               <RotateCw className="h-3 w-3 mr-1" />
               Reload Page
             </Button>
+            {onRetry && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={onRetry}
+                className="text-xs border-amber-500/30 hover:bg-amber-500/10"
+              >
+                <ArrowRight className="h-3 w-3 mr-1" />
+                Continue Anyway
+              </Button>
+            )}
           </div>
         </AlertDescription>
       </Alert>
@@ -89,6 +102,17 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
             <RotateCw className="h-3 w-3 mr-1" />
             Reload Page
           </Button>
+          {onRetry && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onRetry}
+              className="text-xs border-red-500/30 hover:bg-red-500/10"
+            >
+              <ArrowRight className="h-3 w-3 mr-1" />
+              Continue Anyway
+            </Button>
+          )}
         </div>
       </AlertDescription>
     </Alert>

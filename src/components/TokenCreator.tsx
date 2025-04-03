@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,10 +20,29 @@ import AuthStep from './token-creator/AuthStep';
 import PaymentStep from './token-creator/PaymentStep';
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { useStepConfig } from '@/contexts/StepConfigContext';
+import { toast } from '@/hooks/use-toast';
+import { useSession } from '@/contexts/SessionContext';
 
-const TokenCreator: React.FC = () => {
+interface TokenCreatorProps {
+  currentRpcIndex: number;
+  connectionState: 'connected' | 'unstable' | 'failed';
+  setConnectionState: React.Dispatch<React.SetStateAction<'connected' | 'unstable' | 'failed'>>;
+  switchRpcEndpoint: () => void;
+  bypassAuth?: boolean;
+  onSkipAuth?: () => void;
+}
+
+const TokenCreator: React.FC<TokenCreatorProps> = ({ 
+  currentRpcIndex,
+  connectionState,
+  setConnectionState,
+  switchRpcEndpoint,
+  bypassAuth = false,
+  onSkipAuth
+}) => {
   const { publicKey } = useWallet();
-  const { currentStep, visibleSteps } = useStepConfig();
+  const { isAuthenticated } = useSession();
+  const { currentStep, visibleSteps, setCurrentStep } = useStepConfig();
   
   const {
     form,
@@ -34,8 +54,6 @@ const TokenCreator: React.FC = () => {
     selectedNetwork,
     setSelectedNetwork,
     feeBreakdown,
-    currentRpcIndex,
-    setCurrentRpcIndex,
     connectionError,
     showAuthStep,
     readyToCreate,
@@ -46,13 +64,11 @@ const TokenCreator: React.FC = () => {
     validateForm,
     handleCreateToken,
     resetCreator,
-    switchRpcEndpoint
   } = useTokenCreator();
 
   const {
     walletBalance,
     isLoadingBalance,
-    connectionState,
     refreshWalletBalance,
   } = useWalletBalance({
     publicKey,
@@ -70,13 +86,17 @@ const TokenCreator: React.FC = () => {
       
       // Added a small delay to ensure all connections are properly established
       const timer = setTimeout(() => {
-        refreshWalletBalance(true);
+        refreshWalletBalance(true)
+          .catch(err => {
+            console.error("[TokenCreator] Initial balance fetch failed:", err);
+            setConnectionState('unstable');
+          });
         setInitialBalanceFetched(true);
       }, 300);
       
       return () => clearTimeout(timer);
     }
-  }, [publicKey, refreshWalletBalance, initialBalanceFetched]);
+  }, [publicKey, refreshWalletBalance, initialBalanceFetched, setConnectionState]);
 
   // Reset initialBalanceFetched when wallet disconnects
   useEffect(() => {
@@ -95,6 +115,17 @@ const TokenCreator: React.FC = () => {
     }
   }, [readyToCreate, isCreating, handleCreateToken, walletBalance, feeBreakdown, setReadyToCreate]);
 
+  // Handle auth bypass if needed
+  useEffect(() => {
+    if (bypassAuth && showAuthStep) {
+      setCurrentStep(2); // Skip to token details step
+      toast({
+        title: "Authentication Skipped",
+        description: "You can create your token without authentication"
+      });
+    }
+  }, [bypassAuth, showAuthStep, setCurrentStep]);
+
   const handleSubmitToken = () => {
     if (!validateForm()) {
       return;
@@ -107,7 +138,11 @@ const TokenCreator: React.FC = () => {
     
     if (!hasBalance || balanceStale) {
       console.log(`[TokenCreator] Refreshing balance before token creation`);
-      refreshWalletBalance(true);
+      refreshWalletBalance(true)
+        .catch(err => {
+          console.error("[TokenCreator] Balance refresh failed:", err);
+          setConnectionState('unstable');
+        });
       setTimeout(() => {
         if (hasSufficientBalance(walletBalance, feeBreakdown)) {
           setReadyToCreate(true);
@@ -125,8 +160,24 @@ const TokenCreator: React.FC = () => {
   // Show wallet connection states for debugging
   console.log(`[TokenCreator] Wallet connected: ${!!publicKey}, balance: ${walletBalance}, connection state: ${connectionState}`);
 
-  if (showAuthStep) {
-    return <AuthStep connectionError={connectionError} />;
+  // Determine if we need to show auth step
+  const shouldShowAuthStep = showAuthStep && !bypassAuth;
+
+  if (shouldShowAuthStep) {
+    return (
+      <Card className="border border-gray-800 bg-crypto-gray/30 backdrop-blur-sm">
+        <CardContent className="pt-6">
+          <AuthStep 
+            connectionError={connectionError}
+            connectionState={connectionState}
+            switchRpcEndpoint={switchRpcEndpoint}
+            currentRpcIndex={currentRpcIndex}
+            totalEndpoints={RPC_ENDPOINTS[selectedNetwork].length}
+            onSkipAuth={onSkipAuth}
+          />
+        </CardContent>
+      </Card>
+    );
   }
 
   if (isCreating) {
@@ -169,9 +220,17 @@ const TokenCreator: React.FC = () => {
     );
   }
 
+  // Token details form
   return (
     <Card className="border border-gray-800 bg-crypto-gray/30 backdrop-blur-sm">
       <CardContent className="pt-6">
+        <ConnectionStatus 
+          connectionState={connectionState}
+          switchRpcEndpoint={switchRpcEndpoint}
+          currentRpcIndex={currentRpcIndex}
+          totalEndpoints={RPC_ENDPOINTS[selectedNetwork].length}
+        />
+        
         <div className="grid grid-cols-1 lg:grid-cols-7 gap-10">
           {/* Left Column - Token Details */}
           <div className="lg:col-span-4">
@@ -385,127 +444,120 @@ const TokenCreator: React.FC = () => {
             </div>
           </div>
           
-          {/* Right Column - Payment & Network */}
+          {/* Right Column - Network & Preview */}
           <div className="lg:col-span-3">
-            <div className="bg-gray-800/40 p-6 rounded-xl sticky top-24">
-              <h2 className="text-xl font-semibold mb-4">Network & Payment</h2>
-              
+            <div className="space-y-8">
               {/* Network Selection */}
-              <div className="mb-6">
-                <Label className="text-sm font-medium block mb-3">Network</Label>
+              <div className="bg-gray-800/40 p-6 rounded-xl">
+                <h2 className="text-xl font-semibold mb-4">Network</h2>
                 <RadioGroup 
-                  value={selectedNetwork} 
+                  value={selectedNetwork}
+                  className="space-y-3"
                   onValueChange={(value) => setSelectedNetwork(value as 'devnet' | 'mainnet-beta')}
-                  className="flex gap-4"
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="devnet" id="devnet" />
-                    <Label htmlFor="devnet" className="cursor-pointer">Devnet</Label>
+                    <Label htmlFor="devnet" className="cursor-pointer">Devnet (Test Network)</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="mainnet-beta" id="mainnet" />
-                    <Label htmlFor="mainnet" className="cursor-pointer">Mainnet</Label>
+                    <RadioGroupItem value="mainnet-beta" id="mainnet-beta" />
+                    <Label htmlFor="mainnet-beta" className="cursor-pointer">Mainnet (Real Network)</Label>
                   </div>
                 </RadioGroup>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Start with Devnet to test your token for free
+                </p>
               </div>
               
-              <ConnectionStatus 
-                connectionState={connectionState}
-                switchRpcEndpoint={switchRpcEndpoint}
-                currentRpcIndex={currentRpcIndex}
-                totalEndpoints={RPC_ENDPOINTS[selectedNetwork].length}
-              />
-              
-              <div className="mt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-muted-foreground">Your Balance</span>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => refreshWalletBalance(true)}
-                      className="h-5 w-5 transition-all hover:bg-gray-700/50"
-                      disabled={isLoadingBalance}
-                    >
-                      <RefreshCw className={`h-3 w-3 ${isLoadingBalance ? 'animate-spin' : ''}`} />
-                      <span className="sr-only">Refresh balance</span>
-                    </Button>
-                    <span className={`font-medium ${
-                      hasSufficientBalance(walletBalance, feeBreakdown) ? 'text-green-400' : 'text-red-500'
-                    }`}>
-                      {walletBalance !== null 
-                        ? `${walletBalance.toFixed(4)} SOL`
-                        : "0.0000 SOL"}
-                    </span>
-                    {isLoadingBalance && (
-                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+              {/* Token Preview */}
+              <div className="bg-gray-800/40 p-6 rounded-xl">
+                <h2 className="text-xl font-semibold mb-4">Token Preview</h2>
+                <div className="bg-crypto-gray/50 rounded-lg p-4 text-center">
+                  <div className="w-16 h-16 mx-auto bg-gray-700 rounded-full flex items-center justify-center mb-3">
+                    {form.image ? (
+                      <img 
+                        src={URL.createObjectURL(form.image)} 
+                        alt="Token" 
+                        className="w-14 h-14 object-cover rounded-full"
+                      />
+                    ) : (
+                      <div className="text-lg font-bold text-crypto-light">
+                        {form.symbol.slice(0, 2)}
+                      </div>
                     )}
                   </div>
+                  <h3 className="text-lg font-semibold">{form.name || "My Token"}</h3>
+                  <div className="text-sm text-crypto-light mb-2">{form.symbol || "TKN"}</div>
+                  <div className="text-xs text-crypto-light">{form.supply.toLocaleString()} tokens</div>
                 </div>
               </div>
               
-              <Alert className="bg-blue-900/20 border-blue-500/20 my-4">
-                <Info className="h-4 w-4 text-blue-400" />
-                <AlertDescription className="text-sm">
-                  Creating a token requires SOL to pay for blockchain storage and transaction fees.
-                </AlertDescription>
-              </Alert>
-              
-              {/* Fee breakdown */}
-              <div className="space-y-2 mt-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Mint Account Rent</span>
-                  <span>{feeBreakdown ? (feeBreakdown.mintAccountRent / LAMPORTS_PER_SOL).toFixed(4) : "0.0020"} SOL</span>
+              {/* Balance Information */}
+              <div className="bg-gray-800/40 p-6 rounded-xl">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-xl font-semibold">Your Balance</h2>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => refreshWalletBalance(true)}
+                    disabled={isLoadingBalance}
+                  >
+                    {isLoadingBalance ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    <span className="ml-2">Refresh</span>
+                  </Button>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Token Account Rent</span>
-                  <span>{feeBreakdown ? (feeBreakdown.tokenAccountRent / LAMPORTS_PER_SOL).toFixed(4) : "0.0020"} SOL</span>
+                <div className="bg-crypto-gray/50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <span>SOL Balance:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">
+                        {walletBalance !== null ? `${walletBalance.toFixed(4)} SOL` : "Loading..."}
+                      </span>
+                      {isLoadingBalance && <Loader2 className="h-4 w-4 animate-spin" />}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Transaction Fee</span>
-                  <span>{feeBreakdown ? (feeBreakdown.transactionFee / LAMPORTS_PER_SOL).toFixed(4) : "0.0002"} SOL</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Platform Fee</span>
-                  <span>0.05 SOL</span>
-                </div>
-                <div className="border-t border-gray-700 my-2 pt-2"></div>
-                <div className="flex justify-between text-lg font-medium">
-                  <span>Total</span>
-                  <span className="text-solana">{feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(4) : "0.0542"} SOL</span>
-                </div>
-              </div>
-              
-              {/* Create Token Button */}
-              <Button 
-                className="w-full mt-6 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white h-14 text-lg font-medium"
-                onClick={handleSubmitToken}
-                disabled={!hasSufficientBalance(walletBalance, feeBreakdown)}
-              >
-                {!hasSufficientBalance(walletBalance, feeBreakdown) ? (
-                  "Insufficient Balance"
-                ) : (
-                  <>
-                    <Coins className="mr-2 h-5 w-5" />
-                    Create Token
-                  </>
+                {connectionState !== 'connected' && (
+                  <div className="mt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={switchRpcEndpoint}
+                      className="w-full"
+                    >
+                      <Zap className="h-4 w-4 mr-2" />
+                      Switch RPC Endpoint ({currentRpcIndex + 1}/{RPC_ENDPOINTS[selectedNetwork].length})
+                    </Button>
+                  </div>
                 )}
-              </Button>
+              </div>
               
-              <div className="flex items-center justify-between text-xs text-muted-foreground mt-3">
-                <div className="flex items-center gap-1">
-                  <Shield className="h-3 w-3" />
-                  <span>Secure transaction</span>
-                </div>
+              {/* Continue Button */}
+              <div className="bg-gray-800/40 p-6 rounded-xl">
                 <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={switchRpcEndpoint}
-                  className="text-xs h-6 px-2"
+                  onClick={() => setCurrentStep(currentStep + 1)} 
+                  className="w-full bg-solana hover:bg-solana/90"
+                  disabled={!form.name || !form.symbol}
                 >
-                  <Zap className="h-3 w-3 mr-1" />
-                  Change RPC
+                  <Shield className="mr-2 h-4 w-4" />
+                  Continue to Payment
                 </Button>
+              </div>
+              
+              {/* Security Note */}
+              <div className="bg-gray-800/40 p-6 rounded-xl">
+                <div className="flex items-start gap-2">
+                  <Shield className="h-5 w-5 text-crypto-green mt-0.5" />
+                  <div className="text-sm text-crypto-light">
+                    <p className="mb-1 font-medium">Your token will be created securely</p>
+                    <p>Before creating your token, you'll approve a transaction with your wallet. 
+                    All supply will be sent directly to your wallet.</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

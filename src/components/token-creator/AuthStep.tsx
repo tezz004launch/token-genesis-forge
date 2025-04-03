@@ -2,15 +2,38 @@
 import React from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import AuthWallet from '@/components/AuthWallet';
-import { Check, Shield, AlertTriangle } from 'lucide-react';
+import { Check, Shield, AlertTriangle, Wallet } from 'lucide-react';
+import ConnectionStatus from './ConnectionStatus';
 
 interface AuthStepProps {
   connectionError: string | null;
+  connectionState?: 'connected' | 'unstable' | 'failed';
+  switchRpcEndpoint?: () => void;
+  currentRpcIndex?: number;
+  totalEndpoints?: number;
+  onSkipAuth?: () => void;
 }
 
-const AuthStep: React.FC<AuthStepProps> = ({ connectionError }) => {
+const AuthStep: React.FC<AuthStepProps> = ({ 
+  connectionError, 
+  connectionState = 'connected',
+  switchRpcEndpoint = () => {},
+  currentRpcIndex = 0,
+  totalEndpoints = 1,
+  onSkipAuth
+}) => {
   return (
     <div className="space-y-6 py-4">
+      {connectionState !== 'connected' && (
+        <ConnectionStatus 
+          connectionState={connectionState}
+          switchRpcEndpoint={switchRpcEndpoint}
+          currentRpcIndex={currentRpcIndex}
+          totalEndpoints={totalEndpoints}
+          onRetry={onSkipAuth}
+        />
+      )}
+      
       <div className="text-center space-y-4">
         <Shield className="h-16 w-16 text-solana mx-auto" />
         <h3 className="text-xl font-medium">Authenticate Your Wallet</h3>
@@ -55,6 +78,20 @@ const AuthStep: React.FC<AuthStepProps> = ({ connectionError }) => {
         <div className="pt-4 flex justify-center">
           <AuthWallet />
         </div>
+        
+        {onSkipAuth && (
+          <div className="pt-3 mt-3 border-t border-gray-700 text-center">
+            <button
+              onClick={onSkipAuth}
+              className="text-sm text-amber-400 hover:text-amber-300 transition-colors"
+            >
+              Skip authentication for now
+            </button>
+            <p className="text-xs text-muted-foreground mt-1">
+              You can authenticate later when needed
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

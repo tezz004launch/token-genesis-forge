@@ -10,6 +10,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
 import { StepConfigProvider } from '@/contexts/StepConfigContext';
+import { RPC_ENDPOINTS } from '@/lib/token/tokenCreatorUtils';
 
 const TokenCreationPage = () => {
   const navigate = useNavigate();
@@ -19,6 +20,9 @@ const TokenCreationPage = () => {
   const [walletJustConnected, setWalletJustConnected] = useState(false);
   const [pageLoadTime] = useState(Date.now());
   const [rpcLimitWarning, setRpcLimitWarning] = useState(false);
+  const [currentRpcIndex, setCurrentRpcIndex] = useState(0);
+  const [connectionState, setConnectionState] = useState<'connected' | 'unstable' | 'failed'>('connected');
+  const [bypassAuth, setBypassAuth] = useState(false);
 
   // Monitor wallet connection attempts
   useEffect(() => {
@@ -80,6 +84,29 @@ const TokenCreationPage = () => {
     console.log(`[TokenCreationPage] Page loaded at ${new Date(pageLoadTime).toISOString()}`);
     console.log(`[TokenCreationPage] Initial wallet status - connected: ${connected}, publicKey: ${publicKey?.toString() || 'none'}`);
   }, [pageLoadTime, connected, publicKey]);
+  
+  // Handle RPC endpoint switching
+  const switchRpcEndpoint = () => {
+    setCurrentRpcIndex(prev => (prev + 1) % RPC_ENDPOINTS['devnet'].length);
+    toast({
+      title: "Switching RPC Endpoint",
+      description: "Trying a different Solana network connection...",
+    });
+    
+    // Reset connection state when switching endpoints
+    setTimeout(() => {
+      setConnectionState('connected');
+    }, 500);
+  };
+  
+  // Skip auth if network issues persist
+  const handleSkipAuth = () => {
+    setBypassAuth(true);
+    toast({
+      title: "Authentication Bypassed",
+      description: "You can continue without authentication for now",
+    });
+  };
 
   return (
     <div className="min-h-screen bg-crypto-dark text-white">
@@ -120,7 +147,14 @@ const TokenCreationPage = () => {
               Please connect your wallet to create a token. Once created, 100% of the token supply will be sent to your wallet.
             </ConnectWalletPrompt>
           ) : (
-            <TokenCreator />
+            <TokenCreator 
+              currentRpcIndex={currentRpcIndex}
+              connectionState={connectionState}
+              setConnectionState={setConnectionState}
+              switchRpcEndpoint={switchRpcEndpoint}
+              bypassAuth={bypassAuth}
+              onSkipAuth={handleSkipAuth}
+            />
           )}
         </StepConfigProvider>
       </div>
