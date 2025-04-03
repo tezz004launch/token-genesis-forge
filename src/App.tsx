@@ -14,7 +14,7 @@ import {
   SolflareWalletAdapter,
   TorusWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
-import { clusterApiUrl } from '@solana/web3.js';
+import { clusterApiUrl, Commitment } from '@solana/web3.js';
 import { useMemo } from 'react';
 
 // Import stylesheets for the wallet
@@ -40,7 +40,7 @@ const App = () => {
   // Use custom connection configuration to improve reliability
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
   const connectionConfig = useMemo(() => ({
-    commitment: 'confirmed',
+    commitment: 'confirmed' as Commitment,
     confirmTransactionInitialTimeout: 60000, // 60 seconds for transaction confirmations
     disableRetryOnRateLimit: false,
   }), []);
