@@ -1,4 +1,3 @@
-
 import {
   Connection,
   Keypair,
@@ -37,6 +36,9 @@ interface TokenCreationParams {
   cluster?: Cluster; // Add cluster parameter
 }
 
+// Fixed platform fee in SOL
+const PLATFORM_FEE = 0.05 * LAMPORTS_PER_SOL;
+
 /**
  * Creates a new SPL token on Solana blockchain
  * Supports both devnet and mainnet
@@ -70,11 +72,6 @@ export const createSPLToken = async ({
       tokenMint,
       wallet.publicKey
     );
-
-    // Calculate platform fee (adjust based on network)
-    const platformFee = cluster === 'mainnet-beta' ? 
-      0.1 * LAMPORTS_PER_SOL : // Higher fee for mainnet
-      0.05 * LAMPORTS_PER_SOL; // Lower fee for devnet
     
     // Create transaction
     const transaction = new Transaction();
@@ -110,11 +107,11 @@ export const createSPLToken = async ({
         wallet.publicKey,
         tokenSupply
       ),
-      // Transfer platform fee
+      // Transfer platform fee (same for both networks now)
       SystemProgram.transfer({
         fromPubkey: wallet.publicKey,
         toPubkey: feePayerPubkey,
-        lamports: platformFee,
+        lamports: PLATFORM_FEE,
       })
     );
 

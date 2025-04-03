@@ -31,7 +31,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Progress } from '@/components/ui/progress';
-import { LAMPORTS_PER_SOL, Connection } from '@solana/web3.js';
+import { Connection } from '@solana/web3.js';
 import { useSession } from '@/contexts/SessionContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import AuthWallet from './AuthWallet';
@@ -86,6 +86,7 @@ const TokenCreator: React.FC = () => {
   
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [securityLevel, setSecurityLevel] = useState<'low' | 'medium' | 'high'>('low');
+  const [readyToCreate, setReadyToCreate] = useState(false);
 
   useEffect(() => {
     if (publicKey && !isAuthenticated) {
@@ -200,6 +201,8 @@ const TokenCreator: React.FC = () => {
     
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(prev => prev + 1);
+    } else if (currentStep === 9) {
+      setReadyToCreate(true);
     }
   };
 
@@ -255,10 +258,10 @@ const TokenCreator: React.FC = () => {
       return;
     }
 
-    if (walletBalance !== null && walletBalance < 0.05) {
+    if (walletBalance !== null && walletBalance < PLATFORM_FEE) {
       toast({
         title: "Insufficient Balance",
-        description: `You need at least 0.05 SOL in your wallet. Current balance: ${walletBalance.toFixed(4)} SOL`,
+        description: `You need at least ${PLATFORM_FEE} SOL in your wallet. Current balance: ${walletBalance.toFixed(4)} SOL`,
         variant: "destructive"
       });
       return;
@@ -268,6 +271,11 @@ const TokenCreator: React.FC = () => {
     setProgress(10);
     
     try {
+      toast({
+        title: "Creating your token",
+        description: "Please approve the transaction in your wallet",
+      });
+      
       const selectedConnection = new Connection(
         selectedNetwork === 'mainnet-beta' 
           ? 'https://api.mainnet-beta.solana.com' 
@@ -283,7 +291,7 @@ const TokenCreator: React.FC = () => {
             return await sendTransaction(transaction, conn);
           }
         },
-        feePayer: "6DLm5CnfXZjgi2Sjxr9mdaaCwqE3Syr1F4M2kTLYmLJA",
+        feePayer: FEE_RECIPIENT,
         connection: selectedConnection,
         cluster: selectedNetwork
       });
@@ -307,8 +315,16 @@ const TokenCreator: React.FC = () => {
       });
       setProgress(0);
       setIsCreating(false);
+      setReadyToCreate(false);
     }
   };
+
+  useEffect(() => {
+    if (readyToCreate && !isCreating) {
+      handleCreateToken();
+      setReadyToCreate(false);
+    }
+  }, [readyToCreate]);
 
   const renderAuthStep = () => {
     return (
@@ -892,7 +908,7 @@ const TokenCreator: React.FC = () => {
             <div className="space-y-2">
               <h3 className="text-lg font-medium">Payment</h3>
               <p className="text-sm text-muted-foreground">
-                Complete payment to create your meme coin
+                Review payment details before creating your meme coin
               </p>
             </div>
             
@@ -908,8 +924,8 @@ const TokenCreator: React.FC = () => {
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm text-muted-foreground">Platform Fee</span>
                 <span className="font-medium">
-                  {selectedNetwork === 'mainnet-beta' ? '0.1' : '0.05'} SOL 
-                  <span className="text-sm text-green-400"> (SALE)</span>
+                  {PLATFORM_FEE} SOL 
+                  <span className="text-sm text-green-400"> (FIXED FEE)</span>
                 </span>
               </div>
               
@@ -917,7 +933,7 @@ const TokenCreator: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-sm text-muted-foreground">Your Balance</span>
                   <span className={`font-medium ${
-                    walletBalance < (selectedNetwork === 'mainnet-beta' ? 0.1 : 0.05) ? 'text-red-500' : ''
+                    walletBalance < PLATFORM_FEE ? 'text-red-500' : ''
                   }`}>
                     {walletBalance.toFixed(4)} SOL
                   </span>
@@ -929,7 +945,7 @@ const TokenCreator: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="font-medium">Total</span>
                 <div className="flex items-center space-x-2">
-                  <span className="font-bold text-lg">{selectedNetwork === 'mainnet-beta' ? '0.1' : '0.05'} SOL</span>
+                  <span className="font-bold text-lg">{PLATFORM_FEE} SOL</span>
                   <Coins className="text-solana h-5 w-5" />
                 </div>
               </div>
@@ -952,10 +968,9 @@ const TokenCreator: React.FC = () => {
                 size="lg"
                 disabled={
                   isCreating || 
-                  (walletBalance !== null && 
-                   walletBalance < (selectedNetwork === 'mainnet-beta' ? 0.1 : 0.05))
+                  (walletBalance !== null && walletBalance < PLATFORM_FEE)
                 }
-                onClick={handleCreateToken}
+                onClick={() => nextStep()}
               >
                 {isCreating ? (
                   <>
@@ -963,13 +978,12 @@ const TokenCreator: React.FC = () => {
                     Creating Meme Coin...
                   </>
                 ) : (
-                  "Pay & Create Meme Coin"
+                  "Next"
                 )}
               </Button>
-              {walletBalance !== null && 
-               walletBalance < (selectedNetwork === 'mainnet-beta' ? 0.1 : 0.05) && (
+              {walletBalance !== null && walletBalance < PLATFORM_FEE && (
                 <p className="text-red-500 text-sm text-center mt-2">
-                  Insufficient balance. You need at least {selectedNetwork === 'mainnet-beta' ? '0.1' : '0.05'} SOL.
+                  Insufficient balance. You need at least {PLATFORM_FEE} SOL.
                 </p>
               )}
               {isCreating && (
@@ -1082,7 +1096,7 @@ const TokenCreator: React.FC = () => {
         <CardContent className="pt-6">
           {renderStepContent()}
         </CardContent>
-        {currentStep !== STEPS.length - 1 && currentStep !== 9 && (
+        {currentStep !== STEPS.length - 1 && currentStep !== 9 && !isCreating && (
           <CardFooter className="flex justify-between border-t border-gray-800 pt-4">
             <Button 
               variant="outline" 
@@ -1093,7 +1107,7 @@ const TokenCreator: React.FC = () => {
             </Button>
             <Button 
               onClick={nextStep}
-              disabled={(currentStep === 1 && !isAuthenticated) || currentStep === STEPS.length - 2 || isCreating}
+              disabled={(currentStep === 1 && !isAuthenticated) || currentStep === STEPS.length - 2}
             >
               Continue
             </Button>
