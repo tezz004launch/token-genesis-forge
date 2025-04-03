@@ -7,6 +7,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useSession } from '@/contexts/SessionContext';
 import ConnectWalletPrompt from '@/components/ConnectWalletPrompt';
 import { useWallet } from '@solana/wallet-adapter-react';
+import TokenCreationInfo from '@/components/TokenCreationInfo';
 
 const TokenCreationPage = () => {
   const navigate = useNavigate();
@@ -28,8 +29,12 @@ const TokenCreationPage = () => {
           <h1 className="text-3xl font-bold ml-4">Create Meme Coin</h1>
         </div>
 
+        <TokenCreationInfo />
+
         {!connected ? (
-          <ConnectWalletPrompt>Please connect your wallet to create a meme coin</ConnectWalletPrompt>
+          <ConnectWalletPrompt>
+            Please connect your wallet to create a meme coin. Once created, 100% of the token supply will be sent to your wallet.
+          </ConnectWalletPrompt>
         ) : (
           <TokenCreator />
         )}
