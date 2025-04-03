@@ -140,7 +140,7 @@ export const validateTokenForm = (form: TokenForm) => {
   };
 };
 
-// Get a non-blacklisted endpoint
+// Get a non-blacklisted endpoint with improved reliability
 export const getAvailableEndpoint = (
   network: 'devnet' | 'mainnet-beta', 
   currentIndex: number
@@ -164,12 +164,13 @@ export const getAvailableEndpoint = (
     }
   }
   
-  // If all endpoints are blacklisted, use the least recently blacklisted one
-  // and remove it from the blacklist
-  console.log(`[tokenCreatorUtils] All endpoints blacklisted, clearing oldest entry`);
+  // If all endpoints are blacklisted, clear the blacklist and start over
+  console.log(`[tokenCreatorUtils] All endpoints blacklisted, clearing blacklist`);
+  clearRpcBlacklist(network);
+  
+  // Return the next endpoint after current
   const index = (currentIndex + 1) % endpoints.length;
   const endpoint = endpoints[index];
-  blacklist.delete(endpoint);
   
   return { endpoint, index };
 };
@@ -184,17 +185,26 @@ export const createReliableConnection = (
   
   console.log(`[tokenCreatorUtils] Creating connection to: ${endpoint}`);
   
-  // Enhanced connection configuration with better timeout and retry settings
-  return new Connection(endpoint, {
-    commitment: 'confirmed',
-    confirmTransactionInitialTimeout: CONNECTION_TIMEOUT,
-    disableRetryOnRateLimit: false, // Let the RPC handle some retries
-    httpHeaders: {
-      // Add user agent to help identify our app on the RPC
-      'User-Agent': 'SolanaTokenCreator/1.0',
-      'Content-Type': 'application/json'
-    }
-  });
+  try {
+    // Enhanced connection configuration with better timeout and retry settings
+    return new Connection(endpoint, {
+      commitment: 'confirmed',
+      confirmTransactionInitialTimeout: CONNECTION_TIMEOUT,
+      disableRetryOnRateLimit: false, // Let the RPC handle some retries
+      httpHeaders: {
+        // Add user agent to help identify our app on the RPC
+        'User-Agent': 'SolanaTokenCreator/1.0',
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch (error) {
+    console.error(`[tokenCreatorUtils] Error creating connection to ${endpoint}:`, error);
+    
+    // Fallback to a basic connection as last resort
+    const fallbackEndpoint = network === 'devnet' ? 'https://api.devnet.solana.com' : 'https://api.mainnet-beta.solana.com';
+    console.log(`[tokenCreatorUtils] Using fallback connection: ${fallbackEndpoint}`);
+    return new Connection(fallbackEndpoint);
+  }
 };
 
 export const handleRpcError = (
@@ -219,7 +229,9 @@ export const handleRpcError = (
   const isConnectionError = errorMessage.includes('failed to fetch') || 
                             errorMessage.includes('timeout') ||
                             errorMessage.includes('ECONNREFUSED') ||
-                            errorMessage.includes('ETIMEDOUT');
+                            errorMessage.includes('ETIMEDOUT') ||
+                            errorMessage.includes('Failed to fetch') ||
+                            errorMessage.includes('NetworkError');
                          
   if (isConnectionError) {
     console.log(`[tokenCreatorUtils] Connection error on ${endpoint}, blacklisting temporarily`);
@@ -274,10 +286,15 @@ export const getCachedBalance = (address: string, network: string, maxAgeMs: num
 
 export const setCachedBalance = (address: string, network: string, balance: number): void => {
   const cacheKey = `${address}-${network}`;
+  
+  // If it's a raw lamports value, convert to SOL first
+  const balanceToStore = balance > 1000000 ? balance : balance * LAMPORTS_PER_SOL;
+  
   balanceCache.set(cacheKey, {
-    balance,
+    balance: balanceToStore,
     timestamp: Date.now(),
     network
   });
-  console.log(`[tokenCreatorUtils] Cached balance: ${balance / LAMPORTS_PER_SOL} SOL for ${address} on ${network}`);
+  
+  console.log(`[tokenCreatorUtils] Cached balance: ${balanceToStore / LAMPORTS_PER_SOL} SOL for ${address} on ${network}`);
 };

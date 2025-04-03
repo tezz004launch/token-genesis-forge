@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { toast } from '@/hooks/use-toast';
@@ -53,6 +54,7 @@ export const useWalletBalance = ({
   const lastEndpointRef = useRef<string | null>(null);
   const consecutiveFailsRef = useRef<number>(0);
 
+  // Clear RPC blacklist periodically
   useEffect(() => {
     const intervalId = setInterval(() => {
       clearRpcBlacklist(selectedNetwork);
@@ -61,10 +63,13 @@ export const useWalletBalance = ({
     return () => clearInterval(intervalId);
   }, [selectedNetwork]);
 
+  // Set up a new connection when network or RPC index changes
   useEffect(() => {
+    // Clear any existing connection
     connectionRef.current = null;
-    
+
     try {
+      // Get a new connection from the available endpoints
       const { endpoint } = getAvailableEndpoint(selectedNetwork, currentRpcIndex);
       lastEndpointRef.current = endpoint;
       connectionRef.current = createReliableConnection(selectedNetwork, currentRpcIndex);
@@ -73,6 +78,7 @@ export const useWalletBalance = ({
       console.error(`[useWalletBalance] Failed to create connection:`, error);
     }
     
+    // Reset connection state and counters
     setConnectionState('connected');
     setBalanceRefreshAttempts(0);
     setRetryDelay(CONNECTION_RETRY_DELAY);
@@ -80,19 +86,23 @@ export const useWalletBalance = ({
   }, [selectedNetwork, currentRpcIndex]);
 
   const refreshWalletBalance = useCallback(async (force: boolean = false) => {
+    // Skip if no wallet is connected
     if (!publicKey) {
       console.log("[useWalletBalance] No wallet connected, skipping balance refresh");
       return;
     }
     
+    // Prevent too frequent refreshes unless forced
     if (!force && lastBalanceUpdateTime && Date.now() - lastBalanceUpdateTime < 5000) {
       console.log("[useWalletBalance] Skipping balance refresh (too soon since last update)");
       return;
     }
     
+    // Use cached balance if available and not forcing refresh
     if (!force) {
       const cachedBalance = getCachedBalance(publicKey.toString(), selectedNetwork);
       if (cachedBalance !== null) {
+        console.log("[useWalletBalance] Using cached balance:", cachedBalance);
         setWalletBalance(cachedBalance);
         setLastBalanceUpdateTime(Date.now());
         setConnectionState('connected');
@@ -101,6 +111,7 @@ export const useWalletBalance = ({
       }
     }
     
+    // Prevent concurrent refresh requests
     const now = Date.now();
     if (!force && now - lastRefreshAttempt.current < 2000) {
       console.log("[useWalletBalance] Skipping balance refresh (concurrent request prevented)");
@@ -112,64 +123,101 @@ export const useWalletBalance = ({
       console.log(`[useWalletBalance] Starting balance refresh for ${publicKey.toString()}`);
       setIsLoadingBalance(true);
       
+      // Ensure we have a valid connection
       if (!connectionRef.current || lastEndpointRef.current !== connectionRef.current.rpcEndpoint) {
         console.log("[useWalletBalance] Creating new connection");
-        const { endpoint } = getAvailableEndpoint(selectedNetwork, currentRpcIndex);
-        lastEndpointRef.current = endpoint;
-        connectionRef.current = createReliableConnection(selectedNetwork, currentRpcIndex);
+        try {
+          const { endpoint } = getAvailableEndpoint(selectedNetwork, currentRpcIndex);
+          lastEndpointRef.current = endpoint;
+          connectionRef.current = createReliableConnection(selectedNetwork, currentRpcIndex);
+        } catch (error) {
+          console.error("[useWalletBalance] Failed to create connection:", error);
+          // Fall back to using a direct connection as last resort
+          const fallbackEndpoint = selectedNetwork === 'devnet' ? 'https://api.devnet.solana.com' : 'https://api.mainnet-beta.solana.com';
+          connectionRef.current = new Connection(fallbackEndpoint);
+          lastEndpointRef.current = fallbackEndpoint;
+        }
       }
       
       let success = false;
       let balance = 0;
       let attemptCount = 0;
-      const maxAttempts = 6;
+      const maxAttempts = 3; // Reduced from 6 to avoid too many requests
       let lastError: any = null;
       
+      // Try multiple times with different endpoints if needed
       while (attemptCount < maxAttempts && !success) {
         try {
-          console.log(`[useWalletBalance] Fetch attempt ${attemptCount + 1}/${maxAttempts} using endpoint: ${connectionRef.current.rpcEndpoint}`);
+          // Only log the first attempt, to reduce console spam
+          if (attemptCount === 0) {
+            console.log(`[useWalletBalance] Fetch attempt ${attemptCount + 1}/${maxAttempts} using endpoint: ${connectionRef.current?.rpcEndpoint}`);
+          }
           
+          // Race between the balance fetch and a timeout
           const timeoutPromise = new Promise<never>((_, reject) => {
             setTimeout(() => reject(new Error("Balance fetch timeout")), CONNECTION_TIMEOUT);
           });
           
+          if (!connectionRef.current) {
+            throw new Error("No valid connection");
+          }
+          
+          // Try to get the balance with timeout protection
           balance = await Promise.race([
             connectionRef.current.getBalance(publicKey),
             timeoutPromise
           ]) as number;
           
+          // Success path
           success = true;
           consecutiveFailsRef.current = 0;
           setConnectionState('connected');
           console.log(`[useWalletBalance] Success! Balance: ${balance / LAMPORTS_PER_SOL} SOL`);
           
-          setCachedBalance(publicKey.toString(), selectedNetwork, balance);
+          // Cache the successful result
+          setCachedBalance(publicKey.toString(), selectedNetwork, balance / LAMPORTS_PER_SOL);
         } catch (error) {
           attemptCount++;
           lastError = error;
-          console.warn(`[useWalletBalance] Attempt ${attemptCount} failed:`, error);
           
-          const currentEndpoint = connectionRef.current.rpcEndpoint;
-          const wasRpcError = handleRpcError(error, selectedNetwork, currentEndpoint);
-          
-          if (wasRpcError) {
-            console.log("[useWalletBalance] Switching to a different RPC endpoint due to error");
-            const { endpoint, index } = getAvailableEndpoint(selectedNetwork, currentRpcIndex + attemptCount);
-            lastEndpointRef.current = endpoint;
-            connectionRef.current = createReliableConnection(selectedNetwork, index);
+          // Only log failures for transparency, but don't spam
+          if (attemptCount <= 2) {
+            console.warn(`[useWalletBalance] Attempt ${attemptCount} failed:`, error);
           }
           
-          const delayMs = Math.min(CONNECTION_RETRY_DELAY * Math.pow(1.5, attemptCount - 1), MAX_RETRY_DELAY);
-          console.log(`[useWalletBalance] Waiting ${delayMs}ms before next attempt`);
-          await new Promise(r => setTimeout(r, delayMs));
+          // Try to switch endpoints if this was an RPC error
+          if (connectionRef.current) {
+            const currentEndpoint = connectionRef.current.rpcEndpoint;
+            const wasRpcError = handleRpcError(error, selectedNetwork, currentEndpoint);
+            
+            if (wasRpcError) {
+              console.log("[useWalletBalance] Switching to a different RPC endpoint due to error");
+              try {
+                const { endpoint, index } = getAvailableEndpoint(selectedNetwork, currentRpcIndex + attemptCount);
+                lastEndpointRef.current = endpoint;
+                connectionRef.current = createReliableConnection(selectedNetwork, index);
+              } catch (endpointError) {
+                console.error("[useWalletBalance] Failed to get alternative endpoint:", endpointError);
+              }
+            }
+          }
+          
+          // Exponential backoff between attempts
+          if (attemptCount < maxAttempts) {
+            const delayMs = Math.min(CONNECTION_RETRY_DELAY * Math.pow(1.5, attemptCount - 1), MAX_RETRY_DELAY);
+            console.log(`[useWalletBalance] Waiting ${delayMs}ms before next attempt`);
+            await new Promise(r => setTimeout(r, delayMs));
+          }
         }
       }
       
+      // Handle the final outcome - success or failure after all attempts
       if (!success) {
         console.warn(`[useWalletBalance] All ${maxAttempts} attempts failed. Last error: `, lastError);
         consecutiveFailsRef.current += 1;
         setBalanceRefreshAttempts(prev => prev + 1);
         
+        // Update connection state based on consecutive failures
         if (consecutiveFailsRef.current >= 2) {
           setConnectionState('unstable');
         }
@@ -177,16 +225,26 @@ export const useWalletBalance = ({
         if (consecutiveFailsRef.current >= 3) {
           setConnectionState('failed');
           
+          // Notify the user
           toast({
             title: "Network Connection Issues",
-            description: "We're having trouble connecting to the Solana network. Try switching to a different RPC endpoint.",
+            description: "Having trouble connecting to Solana. Try switching to a different RPC endpoint.",
             variant: "destructive",
           });
         }
         
+        // Use a cached balance as fallback if we have one
+        const cachedBalance = getCachedBalance(publicKey.toString(), selectedNetwork);
+        if (cachedBalance !== null) {
+          console.log("[useWalletBalance] Using cached balance as fallback after fetch failure");
+          setWalletBalance(cachedBalance);
+        }
+        
+        // Increase retry delay with exponential backoff
         const newRetryDelay = Math.min(retryDelay * 1.5, MAX_RETRY_DELAY);
         setRetryDelay(newRetryDelay);
       } else {
+        // Reset counters on success
         setBalanceRefreshAttempts(0);
         setRetryDelay(CONNECTION_RETRY_DELAY);
         setWalletBalance(balance / LAMPORTS_PER_SOL);
@@ -196,12 +254,14 @@ export const useWalletBalance = ({
       console.error("[useWalletBalance] Critical error in refresh flow:", error);
       setConnectionState('failed');
       
+      // Notify the user about the critical failure
       toast({
         title: "Balance Update Failed",
         description: "Could not fetch your wallet balance. Please try switching RPC endpoints.",
         variant: "destructive"
       });
     } finally {
+      // Always ensure we clear the loading state
       setIsLoadingBalance(false);
     }
   }, [
@@ -213,22 +273,27 @@ export const useWalletBalance = ({
     currentRpcIndex
   ]);
 
+  // Set up regular balance refresh when wallet is connected
   useEffect(() => {
     if (publicKey) {
       console.log(`[useWalletBalance] Wallet connected: ${publicKey.toString()}`);
       
+      // Initial fetch with delay
       if (isInitialFetch.current) {
         console.log("[useWalletBalance] Initial balance fetch");
+        // Small delay before first fetch to ensure connections are established
         setTimeout(() => {
           refreshWalletBalance(true);
         }, 300);
         isInitialFetch.current = false;
       }
       
+      // Clear any existing interval
       if (refreshTimeoutRef.current) {
         clearInterval(refreshTimeoutRef.current);
       }
       
+      // Set up periodic balance refresh
       refreshTimeoutRef.current = setInterval(() => {
         console.log("[useWalletBalance] Auto-refreshing balance");
         refreshWalletBalance();
@@ -241,6 +306,7 @@ export const useWalletBalance = ({
         }
       };
     } else {
+      // Reset state when wallet disconnects
       console.log("[useWalletBalance] Wallet disconnected, resetting state");
       setWalletBalance(null);
       isInitialFetch.current = true;
@@ -253,6 +319,7 @@ export const useWalletBalance = ({
     }
   }, [publicKey, refreshWalletBalance]);
 
+  // Refresh balance when network or RPC changes
   useEffect(() => {
     if (publicKey) {
       console.log(`[useWalletBalance] Network/RPC changed, refreshing balance`);
@@ -260,6 +327,7 @@ export const useWalletBalance = ({
       setBalanceRefreshAttempts(0);
       consecutiveFailsRef.current = 0;
       
+      // Small delay before fetching to ensure connection is established
       setTimeout(() => {
         refreshWalletBalance(true);
       }, 500);

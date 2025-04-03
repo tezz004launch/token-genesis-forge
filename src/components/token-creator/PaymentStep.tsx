@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { FeeBreakdown } from '@/lib/solana/tokenService';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
@@ -44,7 +43,6 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
   const [lastRefreshTime, setLastRefreshTime] = useState<number | null>(null);
   const [rateLimitDetected, setRateLimitDetected] = useState(false);
   
-  // Listen for rate limiting errors in console logs
   useEffect(() => {
     const originalConsoleWarn = console.warn;
     console.warn = function(...args) {
@@ -54,7 +52,6 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
           message.includes('rate limit')) {
         setRateLimitDetected(true);
         
-        // Auto-reset after 30 seconds
         setTimeout(() => setRateLimitDetected(false), 30000);
       }
       originalConsoleWarn.apply(console, args);
@@ -67,10 +64,13 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
   
   const handleRefreshBalance = async () => {
     setLastRefreshTime(Date.now());
-    await refreshWalletBalance(true);
+    try {
+      await refreshWalletBalance(true);
+    } catch (error) {
+      console.error("[PaymentStep] Error refreshing balance:", error);
+    }
   };
   
-  // Determine if refresh button should be disabled (prevent spam)
   const isRefreshDisabled = isLoadingBalance || 
     (lastRefreshTime && Date.now() - lastRefreshTime < 5000);
   
@@ -355,7 +355,10 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
           disabled={!hasSufficientBalance}
         >
           {!hasSufficientBalance ? (
-            "Insufficient Balance"
+            <>
+              <AlertTriangle className="mr-2 h-4 w-4" />
+              Insufficient Balance
+            </>
           ) : (
             <>
               <Coins className="mr-2 h-4 w-4" />
@@ -363,6 +366,12 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
             </>
           )}
         </Button>
+        
+        {!hasSufficientBalance && walletBalance !== null && (
+          <p className="text-xs text-red-400 mt-2 text-center">
+            Need {feeBreakdown ? ((feeBreakdown.total / LAMPORTS_PER_SOL) - walletBalance).toFixed(4) : "?"} more SOL
+          </p>
+        )}
       </div>
     </div>
   );
