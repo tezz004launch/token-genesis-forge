@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,7 +32,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Progress } from '@/components/ui/progress';
-import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { LAMPORTS_PER_SOL, Connection } from '@solana/web3.js';
 import { useSession } from '@/contexts/SessionContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import AuthWallet from './AuthWallet';
