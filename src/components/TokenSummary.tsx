@@ -1,8 +1,8 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Coins, Copy, ExternalLink } from 'lucide-react';
+import { Coins, Copy, ExternalLink, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import LiquidityPoolCreator from './LiquidityPoolCreator';
@@ -15,6 +15,7 @@ interface TokenSummaryProps {
   mintAddress: string;
   txId: string;
   cluster?: string;
+  onBack?: () => void;
 }
 
 const TokenSummary: React.FC<TokenSummaryProps> = ({
@@ -24,9 +25,11 @@ const TokenSummary: React.FC<TokenSummaryProps> = ({
   totalSupply,
   mintAddress,
   txId,
-  cluster = 'devnet'
+  cluster = 'devnet',
+  onBack
 }) => {
   const { toast } = useToast();
+  const [showLiquiditySection, setShowLiquiditySection] = useState(true);
   
   const copyToClipboard = (text: string, itemName: string) => {
     navigator.clipboard.writeText(text).then(
@@ -46,6 +49,17 @@ const TokenSummary: React.FC<TokenSummaryProps> = ({
 
   return (
     <div className="space-y-6">
+      {onBack && (
+        <Button 
+          variant="ghost" 
+          className="flex items-center gap-1 mb-4 text-muted-foreground hover:text-foreground"
+          onClick={onBack}
+        >
+          <ArrowLeft size={16} />
+          Create another token
+        </Button>
+      )}
+      
       <Card className="border border-gray-800 bg-crypto-dark/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -124,7 +138,9 @@ const TokenSummary: React.FC<TokenSummaryProps> = ({
         </CardContent>
       </Card>
       
-      <LiquidityPoolCreator tokenMint={mintAddress} tokenSymbol={symbol} />
+      {showLiquiditySection && (
+        <LiquidityPoolCreator tokenMint={mintAddress} tokenSymbol={symbol} />
+      )}
     </div>
   );
 };

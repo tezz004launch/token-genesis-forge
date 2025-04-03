@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +35,7 @@ import { LAMPORTS_PER_SOL, Connection } from '@solana/web3.js';
 import { useSession } from '@/contexts/SessionContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import AuthWallet from './AuthWallet';
+import TokenSummary from './TokenSummary';
 
 const STEPS = [
   'Connect Wallet',
@@ -207,6 +207,33 @@ const TokenCreator: React.FC = () => {
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1);
     }
+  };
+
+  const resetCreator = () => {
+    setForm({
+      name: '',
+      symbol: '',
+      decimals: 9,
+      description: '',
+      supply: 1000000000,
+      image: null,
+      revokeMintAuthority: false,
+      revokeFreezeAuthority: true,
+      immutableMetadata: false,
+      website: '',
+      twitter: '',
+      telegram: ''
+    });
+    setErrors({
+      name: '',
+      symbol: '',
+      supply: ''
+    });
+    setProgress(0);
+    setIsCreating(false);
+    setCreationTxHash(null);
+    setTokenAddress(null);
+    setCurrentStep(2);
   };
 
   const handleCreateToken = async () => {
@@ -958,6 +985,21 @@ const TokenCreator: React.FC = () => {
         );
 
       case 10:
+        if (tokenAddress && creationTxHash) {
+          return (
+            <TokenSummary
+              name={form.name}
+              symbol={form.symbol}
+              decimals={form.decimals}
+              totalSupply={form.supply}
+              mintAddress={tokenAddress}
+              txId={creationTxHash}
+              cluster={selectedNetwork}
+              onBack={resetCreator}
+            />
+          );
+        }
+        
         return (
           <div className="text-center space-y-6 py-6">
             <div className="w-20 h-20 mx-auto rounded-full border-2 border-crypto-green/30 flex items-center justify-center bg-crypto-green/10">
@@ -1016,7 +1058,7 @@ const TokenCreator: React.FC = () => {
               <Button 
                 variant="outline" 
                 className="border-crypto-green text-crypto-green hover:bg-crypto-green/10"
-                onClick={() => window.location.reload()}
+                onClick={resetCreator}
               >
                 Create Another Meme Coin
               </Button>
@@ -1040,7 +1082,7 @@ const TokenCreator: React.FC = () => {
         <CardContent className="pt-6">
           {renderStepContent()}
         </CardContent>
-        {currentStep !== STEPS.length - 1 && currentStep !== 8 && (
+        {currentStep !== STEPS.length - 1 && currentStep !== 9 && (
           <CardFooter className="flex justify-between border-t border-gray-800 pt-4">
             <Button 
               variant="outline" 
