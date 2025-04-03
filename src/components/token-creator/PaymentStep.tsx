@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { FeeBreakdown } from '@/lib/solana/tokenService';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
@@ -42,6 +43,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
   const [showExactValues, setShowExactValues] = useState(false);
   const [lastRefreshTime, setLastRefreshTime] = useState<number | null>(null);
   const [rateLimitDetected, setRateLimitDetected] = useState(false);
+  const [bypassBalanceCheck, setBypassBalanceCheck] = useState(false);
   
   useEffect(() => {
     const originalConsoleWarn = console.warn;
@@ -288,6 +290,32 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
           </p>
         </div>
         
+        <div className="mt-4 pt-3 border-t border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <label htmlFor="bypass-balance" className="text-sm font-medium cursor-pointer text-amber-400">
+                Bypass Balance Check
+              </label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Attempt transaction even with insufficient balance
+              </p>
+            </div>
+            <Switch
+              id="bypass-balance"
+              checked={bypassBalanceCheck}
+              onCheckedChange={setBypassBalanceCheck}
+            />
+          </div>
+          {bypassBalanceCheck && !hasSufficientBalance && (
+            <Alert className="mt-2 bg-amber-900/20 border-amber-500/30 py-2">
+              <AlertTriangle className="h-4 w-4 text-amber-400" />
+              <AlertDescription className="text-xs text-amber-300">
+                The transaction will likely fail due to insufficient funds, but your wallet will still attempt it.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+        
         <div className="mt-4 pt-3 border-t border-gray-700 flex justify-between items-center">
           <div>
             <span className="text-sm text-muted-foreground">
@@ -350,14 +378,13 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
       
       <div className="pt-4">
         <Button 
-          className="w-full bg-solana hover:bg-solana-dark"
+          className={`w-full ${hasSufficientBalance || bypassBalanceCheck ? 'bg-solana hover:bg-solana-dark' : 'bg-amber-600 hover:bg-amber-700'}`}
           onClick={onNext}
-          disabled={!hasSufficientBalance}
         >
-          {!hasSufficientBalance ? (
+          {!hasSufficientBalance && !bypassBalanceCheck ? (
             <>
               <AlertTriangle className="mr-2 h-4 w-4" />
-              Insufficient Balance
+              Create Anyway (May Fail)
             </>
           ) : (
             <>
@@ -367,8 +394,8 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
           )}
         </Button>
         
-        {!hasSufficientBalance && walletBalance !== null && (
-          <p className="text-xs text-red-400 mt-2 text-center">
+        {!hasSufficientBalance && walletBalance !== null && !bypassBalanceCheck && (
+          <p className="text-xs text-amber-400 mt-2 text-center">
             Need {feeBreakdown ? ((feeBreakdown.total / LAMPORTS_PER_SOL) - walletBalance).toFixed(4) : "?"} more SOL
           </p>
         )}

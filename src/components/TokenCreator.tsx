@@ -78,6 +78,7 @@ const TokenCreator: React.FC<TokenCreatorProps> = ({
   
   const [initialBalanceFetched, setInitialBalanceFetched] = useState(false);
   const [lastBalanceUpdateTime, setLastBalanceUpdateTime] = useState<number | null>(null);
+  const [bypassBalanceCheck, setBypassBalanceCheck] = useState(false);
 
   // Ensure wallet balance is fetched immediately when component mounts or wallet connects
   useEffect(() => {
@@ -109,11 +110,13 @@ const TokenCreator: React.FC<TokenCreatorProps> = ({
   useEffect(() => {
     if (readyToCreate && !isCreating) {
       const hasSufficientFunds = hasSufficientBalance(walletBalance, feeBreakdown);
-      console.log(`[TokenCreator] Processing token creation. Has sufficient funds: ${hasSufficientFunds}`);
-      handleCreateToken(hasSufficientFunds);
+      console.log(`[TokenCreator] Processing token creation. Has sufficient funds: ${hasSufficientFunds}, Bypass balance check: ${bypassBalanceCheck}`);
+      
+      // Always proceed if bypassing balance check
+      handleCreateToken(hasSufficientFunds || bypassBalanceCheck);
       setReadyToCreate(false);
     }
-  }, [readyToCreate, isCreating, handleCreateToken, walletBalance, feeBreakdown, setReadyToCreate]);
+  }, [readyToCreate, isCreating, handleCreateToken, walletBalance, feeBreakdown, setReadyToCreate, bypassBalanceCheck]);
 
   // Handle auth bypass if needed
   useEffect(() => {
@@ -131,6 +134,15 @@ const TokenCreator: React.FC<TokenCreatorProps> = ({
       return;
     }
     
+    if (!hasSufficientBalance(walletBalance, feeBreakdown) && !bypassBalanceCheck) {
+      toast({
+        title: "Insufficient Balance",
+        description: "Enable 'Bypass Balance Check' to attempt token creation anyway",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     // Check if we need to refresh balance before proceeding
     const hasBalance = walletBalance !== null;
     const balanceAge = hasBalance ? Date.now() - (lastBalanceUpdateTime || 0) : Infinity;
@@ -144,14 +156,11 @@ const TokenCreator: React.FC<TokenCreatorProps> = ({
           setConnectionState('unstable');
         });
       setTimeout(() => {
-        if (hasSufficientBalance(walletBalance, feeBreakdown)) {
-          setReadyToCreate(true);
-        }
+        // Always proceed if bypassing balance check
+        setReadyToCreate(true);
       }, 1000); // Wait a bit for balance to refresh
     } else {
-      if (hasSufficientBalance(walletBalance, feeBreakdown)) {
-        setReadyToCreate(true);
-      }
+      setReadyToCreate(true);
     }
   };
 

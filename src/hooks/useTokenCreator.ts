@@ -177,13 +177,12 @@ export const useTokenCreator = () => {
     }
 
     if (!hasSufficientBalance) {
-      const totalRequired = feeBreakdown ? (feeBreakdown.total / 1000000000).toFixed(4) : "0.0500";
+      // Instead of blocking, just warn
       toast({
-        title: "Insufficient Balance",
-        description: `You need at least ${totalRequired} SOL in your wallet.`,
-        variant: "destructive"
+        title: "Warning: Insufficient Balance",
+        description: "Your transaction may fail due to insufficient funds, but we'll attempt it anyway.",
+        variant: "warning"
       });
-      return;
     }
 
     setIsCreating(true);
@@ -249,13 +248,31 @@ export const useTokenCreator = () => {
         
         setCurrentStep(visibleSteps.length);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('All token creation attempts failed:', error);
-      toast({
-        title: "Token Creation Failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive"
-      });
+      
+      // Check if the error is due to insufficient funds
+      const errorMessage = error?.message || '';
+      const isInsufficientFundsError = 
+        errorMessage.includes('0x1') || // Solana error code for insufficient funds
+        errorMessage.includes('insufficient funds') ||
+        errorMessage.includes('insufficient lamports') ||
+        errorMessage.includes('insufficient balance');
+      
+      if (isInsufficientFundsError) {
+        toast({
+          title: "Insufficient Funds",
+          description: "Your wallet doesn't have enough SOL to complete this transaction.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Token Creation Failed",
+          description: error instanceof Error ? error.message : "An unknown error occurred",
+          variant: "destructive"
+        });
+      }
+      
       setProgress(0);
       setIsCreating(false);
       setReadyToCreate(false);
