@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import StepIndicator from './StepIndicator';
 import { useToast } from '@/components/ui/use-toast';
 import { Slider } from '@/components/ui/slider';
-import { createSPLToken } from '@/lib/solana/tokenService';
+import { createSPLToken, calculateTokenCreationFees, FeeBreakdown } from '@/lib/solana/tokenService';
 import { TokenForm } from '@/types/token';
 import ImageUpload from './ImageUpload';
 import { 
@@ -22,7 +22,8 @@ import {
   AlertTriangle,
   Globe,
   Twitter,
-  MessageSquare
+  MessageSquare,
+  RefreshCw
 } from 'lucide-react';
 import {
   Tooltip,
@@ -37,9 +38,9 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import AuthWallet from './AuthWallet';
 import TokenSummary from './TokenSummary';
 
-const PLATFORM_FEE = 0.05 * LAMPORTS_PER_SOL;
+const PLATFORM_FEE = 0.05;
 const FEE_RECIPIENT = "6DLm5CnfXZjgi2Sjxr9mdaaCwqE3Syr1F4M2kTLYmLJA";
-const PLATFORM_FEE_DISPLAY = "0.05 SOL";
+const BALANCE_BUFFER = 0.001;
 
 const STEPS = [
   'Connect Wallet',
@@ -66,6 +67,8 @@ const TokenCreator: React.FC = () => {
   const [creationTxHash, setCreationTxHash] = useState<string | null>(null);
   const [tokenAddress, setTokenAddress] = useState<string | null>(null);
   const [selectedNetwork, setSelectedNetwork] = useState<'devnet' | 'mainnet-beta'>('devnet');
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+  const [feeBreakdown, setFeeBreakdown] = useState<FeeBreakdown | null>(null);
 
   const [form, setForm] = useState<TokenForm>({
     name: '',
@@ -101,20 +104,45 @@ const TokenCreator: React.FC = () => {
   }, [publicKey, isAuthenticated, currentStep]);
 
   useEffect(() => {
-    const checkBalance = async () => {
-      if (publicKey && connection) {
+    const loadFees = async () => {
+      if (connection) {
         try {
-          const balance = await connection.getBalance(publicKey);
-          setWalletBalance(balance / LAMPORTS_PER_SOL);
+          const selectedConnection = new Connection(
+            selectedNetwork === 'mainnet-beta' 
+              ? 'https://api.mainnet-beta.solana.com' 
+              : 'https://api.devnet.solana.com',
+            'confirmed'
+          );
+          const fees = await calculateTokenCreationFees(selectedConnection);
+          setFeeBreakdown(fees);
         } catch (error) {
-          console.error("Error fetching balance:", error);
+          console.error("Error calculating fees:", error);
         }
       }
     };
     
-    checkBalance();
+    loadFees();
+  }, [connection, selectedNetwork]);
+
+  const refreshWalletBalance = async () => {
+    if (publicKey && connection) {
+      try {
+        setIsLoadingBalance(true);
+        const balance = await connection.getBalance(publicKey);
+        setWalletBalance(balance / LAMPORTS_PER_SOL);
+        console.log(`Refreshed wallet balance: ${balance / LAMPORTS_PER_SOL} SOL`);
+      } catch (error) {
+        console.error("Error fetching balance:", error);
+      } finally {
+        setIsLoadingBalance(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    refreshWalletBalance();
     
-    const intervalId = setInterval(checkBalance, 10000); // every 10 seconds
+    const intervalId = setInterval(refreshWalletBalance, 10000); // every 10 seconds
     
     return () => clearInterval(intervalId);
   }, [publicKey, connection]);
@@ -243,6 +271,17 @@ const TokenCreator: React.FC = () => {
     setCurrentStep(2);
   };
 
+  const hasSufficientBalance = () => {
+    if (walletBalance === null || feeBreakdown === null) return false;
+    
+    const requiredBalance = feeBreakdown.total / LAMPORTS_PER_SOL + BALANCE_BUFFER;
+    const hasEnough = walletBalance >= requiredBalance;
+    
+    console.log(`Balance check: ${walletBalance} SOL available, ${requiredBalance} SOL required (including ${BALANCE_BUFFER} SOL buffer)`);
+    
+    return hasEnough;
+  };
+
   const handleCreateToken = async () => {
     if (!publicKey) {
       toast({
@@ -262,10 +301,13 @@ const TokenCreator: React.FC = () => {
       return;
     }
 
-    if (walletBalance !== null && walletBalance < PLATFORM_FEE / LAMPORTS_PER_SOL) {
+    await refreshWalletBalance();
+
+    if (!hasSufficientBalance()) {
+      const totalRequired = feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(4) : PLATFORM_FEE;
       toast({
         title: "Insufficient Balance",
-        description: `You need at least ${PLATFORM_FEE_DISPLAY} in your wallet. Current balance: ${walletBalance.toFixed(4)} SOL`,
+        description: `You need at least ${totalRequired} SOL in your wallet. Current balance: ${walletBalance?.toFixed(4)} SOL`,
         variant: "destructive"
       });
       return;
@@ -368,6 +410,178 @@ const TokenCreator: React.FC = () => {
           <div className="pt-4 flex justify-center">
             <AuthWallet />
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPaymentStep = () => {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h3 className="text-lg font-medium">Payment</h3>
+          <p className="text-sm text-muted-foreground">
+            Review payment details before creating your meme coin
+          </p>
+        </div>
+        
+        <Alert className="bg-green-900/20 border-green-500/20">
+          <Shield className="h-4 w-4 text-green-500" />
+          <AlertTitle>Secure Transaction</AlertTitle>
+          <AlertDescription>
+            This transaction is protected by wallet authentication and will require your approval.
+          </AlertDescription>
+        </Alert>
+
+        <div className="bg-blue-900/20 border border-blue-500/20 p-4 rounded-md mb-4">
+          <h4 className="text-sm font-medium text-blue-300 mb-2 flex items-center gap-2">
+            <Info className="h-4 w-4" /> Transaction Fee Breakdown
+          </h4>
+          <p className="text-xs text-blue-200/70 mb-3">
+            Your transaction includes several fees required by the Solana blockchain:
+          </p>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between">
+              <div className="flex items-start gap-2">
+                <span className="text-xs text-muted-foreground">Rent for Mint Account:</span>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-3 w-3 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-xs">Cost to store your token's core information (supply, decimals, etc.) on-chain</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <span>{feeBreakdown ? (feeBreakdown.mintAccountRent / LAMPORTS_PER_SOL).toFixed(5) : "0.00200"} SOL</span>
+            </div>
+            <div className="flex justify-between">
+              <div className="flex items-start gap-2">
+                <span className="text-xs text-muted-foreground">Rent for Token Account:</span>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-3 w-3 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-xs">Cost to store your token balance information on-chain</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <span>{feeBreakdown ? (feeBreakdown.tokenAccountRent / LAMPORTS_PER_SOL).toFixed(5) : "0.00200"} SOL</span>
+            </div>
+            <div className="flex justify-between">
+              <div className="flex items-start gap-2">
+                <span className="text-xs text-muted-foreground">Network Transaction Fee:</span>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-3 w-3 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-xs">Fee paid to Solana validators for processing your transaction</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <span>{feeBreakdown ? (feeBreakdown.transactionFee / LAMPORTS_PER_SOL).toFixed(5) : "0.00025"} SOL</span>
+            </div>
+            <div className="border-t border-blue-500/20 pt-2 mt-2"></div>
+            <div className="flex justify-between font-medium">
+              <div className="flex items-start gap-2">
+                <span className="text-muted-foreground">Platform Fee:</span>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-3 w-3 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-xs">Fee for using our token creation service</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <span>{PLATFORM_FEE} SOL</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-crypto-gray/30 p-6 rounded-md">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm text-muted-foreground">Total Required</span>
+            <span className="font-medium text-lg">
+              {feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(4) : PLATFORM_FEE} SOL
+            </span>
+          </div>
+          
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Your Balance</span>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={refreshWalletBalance}
+                className="h-5 w-5"
+                disabled={isLoadingBalance}
+              >
+                <RefreshCw className={`h-3 w-3 ${isLoadingBalance ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+            <span className={`font-medium ${
+              hasSufficientBalance() ? 'text-green-400' : 'text-red-500'
+            }`}>
+              {walletBalance !== null ? walletBalance.toFixed(4) : "0.0000"} SOL
+            </span>
+          </div>
+          
+          <div className="border-t border-gray-700 my-3" />
+          
+          <div className="flex items-center justify-between">
+            <span className="font-medium">Total Due</span>
+            <div className="flex items-center space-x-2">
+              <span className="font-bold text-lg">{feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(4) : PLATFORM_FEE} SOL</span>
+              <Coins className="text-solana h-5 w-5" />
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-crypto-gray/30 p-4 rounded-md flex items-start space-x-3">
+          <CreditCard className="text-solana h-5 w-5 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-sm">
+              This fee covers all costs associated with creating your meme coin on the Solana 
+              {selectedNetwork === 'mainnet-beta' ? ' mainnet' : ' devnet'}, including blockchain rent payments and network transaction fees. 
+              Your wallet will be prompted to approve this transaction.
+            </p>
+          </div>
+        </div>
+        
+        <div className="pt-4">
+          <Button 
+            className="w-full bg-solana hover:bg-solana-dark transition-colors"
+            size="lg"
+            disabled={
+              isCreating || !hasSufficientBalance()
+            }
+            onClick={() => nextStep()}
+          >
+            {isCreating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating Meme Coin...
+              </>
+            ) : (
+              "Next"
+            )}
+          </Button>
+          {!hasSufficientBalance() && walletBalance !== null && (
+            <p className="text-red-500 text-sm text-center mt-2">
+              Insufficient balance. You need at least {feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(4) : PLATFORM_FEE} SOL.
+            </p>
+          )}
+          {isCreating && (
+            <div className="mt-4">
+              <Progress value={progress} className="bg-crypto-gray h-2" />
+              <p className="text-xs text-center mt-2 text-muted-foreground">
+                {progress < 100 ? "Processing your transaction..." : "Token created successfully!"}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -907,100 +1121,7 @@ const TokenCreator: React.FC = () => {
         );
 
       case 9:
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium">Payment</h3>
-              <p className="text-sm text-muted-foreground">
-                Review payment details before creating your meme coin
-              </p>
-            </div>
-            
-            <Alert className="bg-green-900/20 border-green-500/20">
-              <Shield className="h-4 w-4 text-green-500" />
-              <AlertTitle>Secure Transaction</AlertTitle>
-              <AlertDescription>
-                This transaction is protected by wallet authentication and will require your approval.
-              </AlertDescription>
-            </Alert>
-            
-            <div className="bg-crypto-gray/30 p-6 rounded-md">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm text-muted-foreground">Platform Fee</span>
-                <span className="font-medium">
-                  {PLATFORM_FEE_DISPLAY}
-                  <span className="text-sm text-green-400"> (FIXED FEE)</span>
-                </span>
-              </div>
-              
-              {walletBalance !== null && (
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm text-muted-foreground">Your Balance</span>
-                  <span className={`font-medium ${
-                    walletBalance < PLATFORM_FEE / LAMPORTS_PER_SOL ? 'text-red-500' : ''
-                  }`}>
-                    {walletBalance.toFixed(4)} SOL
-                  </span>
-                </div>
-              )}
-              
-              <div className="border-t border-gray-700 my-3" />
-              
-              <div className="flex items-center justify-between">
-                <span className="font-medium">Total</span>
-                <div className="flex items-center space-x-2">
-                  <span className="font-bold text-lg">{PLATFORM_FEE_DISPLAY}</span>
-                  <Coins className="text-solana h-5 w-5" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-crypto-gray/30 p-4 rounded-md flex items-start space-x-3">
-              <CreditCard className="text-solana h-5 w-5 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-sm">
-                  This fee covers all costs associated with creating your meme coin on the Solana 
-                  {selectedNetwork === 'mainnet-beta' ? ' mainnet' : ' devnet'}. 
-                  Your wallet will be prompted to approve this transaction.
-                </p>
-              </div>
-            </div>
-            
-            <div className="pt-4">
-              <Button 
-                className="w-full bg-solana hover:bg-solana-dark transition-colors"
-                size="lg"
-                disabled={
-                  isCreating || 
-                  (walletBalance !== null && walletBalance < PLATFORM_FEE / LAMPORTS_PER_SOL)
-                }
-                onClick={() => nextStep()}
-              >
-                {isCreating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating Meme Coin...
-                  </>
-                ) : (
-                  "Next"
-                )}
-              </Button>
-              {walletBalance !== null && walletBalance < PLATFORM_FEE / LAMPORTS_PER_SOL && (
-                <p className="text-red-500 text-sm text-center mt-2">
-                  Insufficient balance. You need at least {PLATFORM_FEE_DISPLAY}.
-                </p>
-              )}
-              {isCreating && (
-                <div className="mt-4">
-                  <Progress value={progress} className="bg-crypto-gray h-2" />
-                  <p className="text-xs text-center mt-2 text-muted-foreground">
-                    {progress < 100 ? "Processing your transaction..." : "Token created successfully!"}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        );
+        return renderPaymentStep();
 
       case 10:
         if (tokenAddress && creationTxHash) {

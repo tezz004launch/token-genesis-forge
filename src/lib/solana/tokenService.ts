@@ -1,3 +1,4 @@
+
 import {
   Connection,
   Keypair,
@@ -38,6 +39,38 @@ interface TokenCreationParams {
 
 // Fixed platform fee in SOL
 const PLATFORM_FEE = 0.05 * LAMPORTS_PER_SOL;
+// Estimated transaction fee (varies with network conditions)
+const ESTIMATED_TX_FEE = 0.00025 * LAMPORTS_PER_SOL;
+// Token account creation fee
+const TOKEN_ACCOUNT_RENT = 0.002 * LAMPORTS_PER_SOL;
+
+// Fee breakdown structure
+export interface FeeBreakdown {
+  mintAccountRent: number;
+  tokenAccountRent: number;
+  transactionFee: number;
+  platformFee: number;
+  total: number;
+}
+
+/**
+ * Calculate the estimated fees for token creation
+ * Return values are in lamports
+ */
+export const calculateTokenCreationFees = async (
+  connection: Connection
+): Promise<FeeBreakdown> => {
+  // Get actual rent exemption for mint
+  const mintRent = await getMinimumBalanceForRentExemptMint(connection);
+  
+  return {
+    mintAccountRent: mintRent,
+    tokenAccountRent: TOKEN_ACCOUNT_RENT,
+    transactionFee: ESTIMATED_TX_FEE,
+    platformFee: PLATFORM_FEE,
+    total: mintRent + TOKEN_ACCOUNT_RENT + ESTIMATED_TX_FEE + PLATFORM_FEE
+  };
+};
 
 /**
  * Creates a new SPL token on Solana blockchain
@@ -49,13 +82,15 @@ export const createSPLToken = async ({
   feePayer,
   connection,
   cluster = 'devnet' // Default to devnet
-}: TokenCreationParams): Promise<{ txId: string; tokenAddress: string }> => {
+}: TokenCreationParams): Promise<{ txId: string; tokenAddress: string; fees: FeeBreakdown }> => {
   try {
     if (!wallet.publicKey) {
       throw new Error("Wallet not connected");
     }
 
     console.log(`Creating token on ${cluster} network`);
+    console.log(`Wallet balance check: ${await connection.getBalance(wallet.publicKey) / LAMPORTS_PER_SOL} SOL`);
+    
     const feePayerPubkey = new PublicKey(feePayer);
     
     const mintKeypair = Keypair.generate();
@@ -63,6 +98,7 @@ export const createSPLToken = async ({
     
     // Get required lamports for token mint
     const lamportsForMint = await getMinimumBalanceForRentExemptMint(connection);
+    console.log(`Mint rent exemption: ${lamportsForMint / LAMPORTS_PER_SOL} SOL`);
     
     // Calculate token supply with decimals
     const tokenSupply = BigInt(form.supply * Math.pow(10, form.decimals));
@@ -139,6 +175,9 @@ export const createSPLToken = async ({
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
     transaction.feePayer = wallet.publicKey;
 
+    // Calculate total fees for this transaction
+    const fees = await calculateTokenCreationFees(connection);
+
     // Send transaction
     console.log(`Sending transaction to create token ${form.name} (${form.symbol})...`);
     const txId = await wallet.sendTransaction(transaction, connection);
@@ -170,7 +209,8 @@ export const createSPLToken = async ({
     
     return {
       txId,
-      tokenAddress: tokenMint.toString()
+      tokenAddress: tokenMint.toString(),
+      fees
     };
   } catch (error) {
     console.error("Error creating token:", error);
