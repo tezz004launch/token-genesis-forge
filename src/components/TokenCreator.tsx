@@ -39,6 +39,7 @@ import TokenSummary from './TokenSummary';
 
 const PLATFORM_FEE = 0.05 * LAMPORTS_PER_SOL;
 const FEE_RECIPIENT = "6DLm5CnfXZjgi2Sjxr9mdaaCwqE3Syr1F4M2kTLYmLJA";
+const PLATFORM_FEE_DISPLAY = "0.05 SOL";
 
 const STEPS = [
   'Connect Wallet',
@@ -261,10 +262,10 @@ const TokenCreator: React.FC = () => {
       return;
     }
 
-    if (walletBalance !== null && walletBalance < PLATFORM_FEE) {
+    if (walletBalance !== null && walletBalance < PLATFORM_FEE / LAMPORTS_PER_SOL) {
       toast({
         title: "Insufficient Balance",
-        description: `You need at least ${PLATFORM_FEE} SOL in your wallet. Current balance: ${walletBalance.toFixed(4)} SOL`,
+        description: `You need at least ${PLATFORM_FEE_DISPLAY} in your wallet. Current balance: ${walletBalance.toFixed(4)} SOL`,
         variant: "destructive"
       });
       return;
@@ -927,7 +928,7 @@ const TokenCreator: React.FC = () => {
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm text-muted-foreground">Platform Fee</span>
                 <span className="font-medium">
-                  {PLATFORM_FEE} SOL 
+                  {PLATFORM_FEE_DISPLAY}
                   <span className="text-sm text-green-400"> (FIXED FEE)</span>
                 </span>
               </div>
@@ -936,7 +937,7 @@ const TokenCreator: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-sm text-muted-foreground">Your Balance</span>
                   <span className={`font-medium ${
-                    walletBalance < PLATFORM_FEE ? 'text-red-500' : ''
+                    walletBalance < PLATFORM_FEE / LAMPORTS_PER_SOL ? 'text-red-500' : ''
                   }`}>
                     {walletBalance.toFixed(4)} SOL
                   </span>
@@ -948,7 +949,7 @@ const TokenCreator: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="font-medium">Total</span>
                 <div className="flex items-center space-x-2">
-                  <span className="font-bold text-lg">{PLATFORM_FEE} SOL</span>
+                  <span className="font-bold text-lg">{PLATFORM_FEE_DISPLAY}</span>
                   <Coins className="text-solana h-5 w-5" />
                 </div>
               </div>
@@ -971,7 +972,7 @@ const TokenCreator: React.FC = () => {
                 size="lg"
                 disabled={
                   isCreating || 
-                  (walletBalance !== null && walletBalance < PLATFORM_FEE)
+                  (walletBalance !== null && walletBalance < PLATFORM_FEE / LAMPORTS_PER_SOL)
                 }
                 onClick={() => nextStep()}
               >
@@ -984,9 +985,9 @@ const TokenCreator: React.FC = () => {
                   "Next"
                 )}
               </Button>
-              {walletBalance !== null && walletBalance < PLATFORM_FEE && (
+              {walletBalance !== null && walletBalance < PLATFORM_FEE / LAMPORTS_PER_SOL && (
                 <p className="text-red-500 text-sm text-center mt-2">
-                  Insufficient balance. You need at least {PLATFORM_FEE} SOL.
+                  Insufficient balance. You need at least {PLATFORM_FEE_DISPLAY}.
                 </p>
               )}
               {isCreating && (
