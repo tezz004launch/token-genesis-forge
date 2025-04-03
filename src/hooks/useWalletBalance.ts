@@ -54,11 +54,11 @@ export const useWalletBalance = ({
   const consecutiveFailsRef = useRef<number>(0);
 
   useEffect(() => {
-    const clearInterval = setInterval(() => {
+    const intervalId = setInterval(() => {
       clearRpcBlacklist(selectedNetwork);
     }, 5 * 60 * 1000); // Clear blacklist every 5 minutes
     
-    return () => clearInterval(clearInterval);
+    return () => clearInterval(intervalId);
   }, [selectedNetwork]);
 
   useEffect(() => {
