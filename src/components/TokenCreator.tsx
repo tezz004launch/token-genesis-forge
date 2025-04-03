@@ -8,6 +8,7 @@ import { useWalletBalance } from '@/hooks/useWalletBalance';
 import { useStepConfig } from '@/contexts/StepConfigContext';
 import { hasSufficientBalance } from '@/lib/token/tokenCreatorUtils';
 import { RPC_ENDPOINTS } from '@/lib/token/tokenCreatorUtils';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 // Import step components
 import AuthStep from './token-creator/AuthStep';
@@ -17,6 +18,8 @@ import GenericStep from './token-creator/GenericStep';
 import CreationProgress from './token-creator/CreationProgress';
 
 const TokenCreator: React.FC = () => {
+  const { publicKey } = useWallet(); // Get publicKey from useWallet hook
+  
   const {
     form,
     errors,
@@ -58,7 +61,7 @@ const TokenCreator: React.FC = () => {
     balanceRefreshAttempts,
     setConnectionState
   } = useWalletBalance({
-    publicKey: useTokenCreator().publicKey,
+    publicKey, // Pass the publicKey from useWallet hook
     selectedNetwork,
     currentRpcIndex
   });
