@@ -10,6 +10,8 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import TokenCreationInfo from '@/components/TokenCreationInfo';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
+import { StepConfigProvider } from '@/contexts/StepConfigContext';
+import StepConfigurator from '@/components/StepConfigurator';
 
 const TokenCreationPage = () => {
   const navigate = useNavigate();
@@ -37,38 +39,43 @@ const TokenCreationPage = () => {
   }, [connectionAttempted, connected, connecting]);
 
   return (
-    <div className="min-h-screen bg-crypto-dark text-white">
-      <div className="container mx-auto py-8 px-4 max-w-4xl">
-        <div className="mb-8 flex items-center">
-          <Button 
-            variant="ghost" 
-            className="flex items-center text-crypto-light hover:text-white" 
-            onClick={() => navigate(-1)}
-          >
-            <ChevronLeft size={16} className="mr-1" />
-            Back
-          </Button>
-          <h1 className="text-3xl font-bold ml-4">Create Meme Coin</h1>
+    <StepConfigProvider>
+      <div className="min-h-screen bg-crypto-dark text-white">
+        <div className="container mx-auto py-8 px-4 max-w-4xl">
+          <div className="mb-8 flex items-center justify-between">
+            <div className="flex items-center">
+              <Button 
+                variant="ghost" 
+                className="flex items-center text-crypto-light hover:text-white" 
+                onClick={() => navigate(-1)}
+              >
+                <ChevronLeft size={16} className="mr-1" />
+                Back
+              </Button>
+              <h1 className="text-3xl font-bold ml-4">Create Meme Coin</h1>
+            </div>
+            <StepConfigurator />
+          </div>
+
+          <Alert className="bg-blue-900/20 border-blue-800/30 mb-6">
+            <Info className="h-4 w-4 text-blue-400" />
+            <AlertDescription>
+              If you experience network connectivity issues or balance update problems, use the "Change RPC" button in the payment step to connect to a different Solana endpoint.
+            </AlertDescription>
+          </Alert>
+
+          <TokenCreationInfo />
+
+          {!connected ? (
+            <ConnectWalletPrompt>
+              Please connect your wallet to create a meme coin. Once created, 100% of the token supply will be sent to your wallet.
+            </ConnectWalletPrompt>
+          ) : (
+            <TokenCreator />
+          )}
         </div>
-
-        <Alert className="bg-blue-900/20 border-blue-800/30 mb-6">
-          <Info className="h-4 w-4 text-blue-400" />
-          <AlertDescription>
-            If you experience network connectivity issues or balance update problems, use the "Change RPC" button in the payment step to connect to a different Solana endpoint.
-          </AlertDescription>
-        </Alert>
-
-        <TokenCreationInfo />
-
-        {!connected ? (
-          <ConnectWalletPrompt>
-            Please connect your wallet to create a meme coin. Once created, 100% of the token supply will be sent to your wallet.
-          </ConnectWalletPrompt>
-        ) : (
-          <TokenCreator />
-        )}
       </div>
-    </div>
+    </StepConfigProvider>
   );
 };
 

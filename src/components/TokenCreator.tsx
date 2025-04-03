@@ -41,15 +41,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import AuthWallet from './AuthWallet';
 import TokenSummary from './TokenSummary';
 import { Switch } from '@/components/ui/switch';
-import { 
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage 
-} from '@/components/ui/form';
+import { useStepConfig } from '@/contexts/StepConfigContext';
 
 const PLATFORM_FEE = 0.05;
 const FEE_RECIPIENT = "FMZJ2zuacqYiyE8E9ysQxALBkcTvCohUCTpLGrCSCnUH";
@@ -58,20 +50,6 @@ const BALANCE_REFRESH_INTERVAL = 5000; // 5 seconds
 const CONNECTION_RETRY_DELAY = 1000; // 1 second initial retry delay
 const MAX_RETRY_DELAY = 8000; // Max retry delay of 8 seconds
 const CONNECTION_TIMEOUT = 30000; // Increased timeout for connections to 30 seconds
-
-const STEPS = [
-  'Connect Wallet',
-  'Authenticate',
-  'Basic Information',
-  'Token Parameters',
-  'Socials',
-  'Permissions',
-  'Image Upload',
-  'Network',
-  'Review',
-  'Payment',
-  'Confirmation'
-];
 
 const RPC_ENDPOINTS = {
   'devnet': [
@@ -101,7 +79,13 @@ const TokenCreator: React.FC = () => {
   const { connection } = useConnection();
   const { toast } = useToast();
   const { isAuthenticated } = useSession();
-  const [currentStep, setCurrentStep] = useState(1);
+  const { 
+    visibleSteps, 
+    currentStep, 
+    setCurrentStep, 
+    totalVisibleSteps 
+  } = useStepConfig();
+  
   const [isCreating, setIsCreating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [creationTxHash, setCreationTxHash] = useState<string | null>(null);
@@ -153,7 +137,7 @@ const TokenCreator: React.FC = () => {
       setCurrentStep(2);
       setShowAuthStep(false);
     }
-  }, [publicKey, isAuthenticated, currentStep]);
+  }, [publicKey, isAuthenticated, currentStep, setCurrentStep]);
 
   useEffect(() => {
     const loadFees = async () => {
@@ -420,19 +404,19 @@ const TokenCreator: React.FC = () => {
   };
 
   const nextStep = () => {
-    if (currentStep === 2) {
+    if (visibleSteps[currentStep - 1]?.id === 'basic-info') {
       if (!validateForm()) {
         return;
       }
     }
     
-    if (currentStep < STEPS.length - 1) {
+    if (currentStep < totalVisibleSteps) {
       setCurrentStep(prev => prev + 1);
       
       if (connectionState === 'failed' || connectionState === 'unstable') {
         switchRpcEndpoint();
       }
-    } else if (currentStep === 9) {
+    } else if (currentStep === totalVisibleSteps) {
       setReadyToCreate(true);
     }
   };
@@ -1007,33 +991,26 @@ const TokenCreator: React.FC = () => {
   };
 
   const renderStepContent = () => {
-    switch (currentStep) {
-      case 1:
+    const currentStepData = visibleSteps[currentStep - 1];
+    
+    if (!currentStepData) return null;
+    
+    switch (currentStepData.id) {
+      case 'auth':
         return renderAuthStep();
-      case 2:
+      case 'basic-info':
         return renderBasicInfoFields();
-      case 9:
+      case 'payment':
         return renderPaymentStep();
       default:
-        return (
+        const StepComponent = currentStepData.component;
+        return StepComponent ? <StepComponent /> : (
           <div className="py-4 text-center">
             <FileEdit className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-medium mb-2">Step {currentStep}: {STEPS[currentStep]}</h3>
+            <h3 className="text-lg font-medium mb-2">Step {currentStep}: {currentStepData.title}</h3>
             <p className="text-muted-foreground">
-              This step is included as a placeholder. In a real implementation,
-              you would collect more token details here.
+              {currentStepData.description || "This step is included as a placeholder."}
             </p>
-            {currentStep === 3 && (
-              <div className="mt-4 p-4 bg-blue-900/20 border border-blue-500/20 rounded-md text-left">
-                <p className="text-sm">
-                  Normally on this step, you would configure token parameters like:
-                </p>
-                <ul className="mt-2 space-y-1 text-sm list-disc list-inside">
-                  <li>Total supply: {form.supply.toLocaleString()}</li>
-                  <li>Decimals: {form.decimals}</li>
-                </ul>
-              </div>
-            )}
           </div>
         );
     }
@@ -1049,8 +1026,8 @@ const TokenCreator: React.FC = () => {
           </CardHeader>
           <CardContent>
             <StepIndicator 
-              currentStep={currentStep - 1} 
-              totalSteps={STEPS.length - 1} 
+              currentStep={currentStep} 
+              totalSteps={totalVisibleSteps} 
             />
             
             {isCreating ? (
@@ -1059,8 +1036,8 @@ const TokenCreator: React.FC = () => {
                 <Progress value={progress} className="w-full max-w-md mx-auto" />
                 <p className="text-sm text-crypto-light">
                   {progress < 50 ? "Preparing transaction..." : 
-                  progress < 90 ? "Confirming on blockchain..." : 
-                  "Token creation success!"}
+                   progress < 90 ? "Confirming on blockchain..." : 
+                   "Token creation success!"}
                 </p>
                 {creationTxHash && tokenAddress && (
                   <TokenSummary 
@@ -1080,7 +1057,7 @@ const TokenCreator: React.FC = () => {
               </div>
             )}
           </CardContent>
-          {!isCreating && currentStep > 1 && currentStep < STEPS.length && (
+          {!isCreating && currentStep > 1 && currentStep < totalVisibleSteps + 1 && (
             <CardFooter className="justify-between border-t border-gray-800 p-4">
               <Button 
                 variant="outline" 
@@ -1089,14 +1066,14 @@ const TokenCreator: React.FC = () => {
               >
                 Back
               </Button>
-              {currentStep < 10 && (
+              {currentStep < totalVisibleSteps + 1 && (
                 <Button onClick={nextStep}>
-                  Next
+                  {currentStep === totalVisibleSteps ? "Create Token" : "Next"}
                 </Button>
               )}
             </CardFooter>
           )}
-          {currentStep === STEPS.length && (
+          {currentStep === totalVisibleSteps + 1 && (
             <CardFooter className="justify-center border-t border-gray-800 p-4">
               <Button onClick={resetCreator}>
                 Create Another Token
