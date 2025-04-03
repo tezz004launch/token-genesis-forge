@@ -4,7 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Coins, Lock, Wallet } from 'lucide-react';
 
-const ConnectWalletPrompt = () => {
+interface ConnectWalletPromptProps {
+  children?: React.ReactNode;
+}
+
+const ConnectWalletPrompt: React.FC<ConnectWalletPromptProps> = ({ children }) => {
   return (
     <Card className="border border-solana/20 bg-crypto-gray/50 backdrop-blur-sm shadow-lg max-w-xl mx-auto">
       <CardHeader className="border-b border-gray-800">
@@ -21,8 +25,7 @@ const ConnectWalletPrompt = () => {
           <div className="space-y-4">
             <h3 className="text-xl font-medium">First Step to Creating Your Token</h3>
             <p className="text-crypto-light">
-              To create your own SPL token on Solana, you need to connect your wallet first.
-              This allows us to interact with the Solana blockchain on your behalf.
+              {children || "To create your own SPL token on Solana, you need to connect your wallet first. This allows us to interact with the Solana blockchain on your behalf."}
             </p>
           </div>
 
