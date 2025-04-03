@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TokenCreator from '@/components/TokenCreator';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,32 @@ import ConnectWalletPrompt from '@/components/ConnectWalletPrompt';
 import { useWallet } from '@solana/wallet-adapter-react';
 import TokenCreationInfo from '@/components/TokenCreationInfo';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { toast } from '@/hooks/use-toast';
 
 const TokenCreationPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useSession();
-  const { connected } = useWallet();
+  const { connected, connecting, publicKey } = useWallet();
+  const [connectionAttempted, setConnectionAttempted] = useState(false);
+
+  // Monitor wallet connection attempts
+  useEffect(() => {
+    if (connecting) {
+      setConnectionAttempted(true);
+    }
+  }, [connecting]);
+
+  // Handle connection errors
+  useEffect(() => {
+    if (connectionAttempted && !connected && !connecting) {
+      toast({
+        title: "Wallet Connection Issue",
+        description: "There was a problem connecting to your wallet. Please try again.",
+        variant: "destructive"
+      });
+      setConnectionAttempted(false);
+    }
+  }, [connectionAttempted, connected, connecting]);
 
   return (
     <div className="min-h-screen bg-crypto-dark text-white">

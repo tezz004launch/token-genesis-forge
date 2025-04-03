@@ -115,6 +115,8 @@ const TokenCreator: React.FC = () => {
   const [connectionState, setConnectionState] = useState<'connected' | 'unstable' | 'failed'>('connected');
   const [showExactValues, setShowExactValues] = useState(false);
   const [currentRpcIndex, setCurrentRpcIndex] = useState(0);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [showAuthStep, setShowAuthStep] = useState(true);
 
   const [form, setForm] = useState<TokenForm>({
     name: 'Demo Meme Coin',
@@ -142,10 +144,14 @@ const TokenCreator: React.FC = () => {
   const [readyToCreate, setReadyToCreate] = useState(false);
 
   useEffect(() => {
-    if (publicKey && !isAuthenticated) {
+    setConnectionError(null);
+    
+    if (publicKey && !isAuthenticated && currentStep > 1) {
       setCurrentStep(1);
+      setShowAuthStep(true);
     } else if (publicKey && isAuthenticated && currentStep < 2) {
       setCurrentStep(2);
+      setShowAuthStep(false);
     }
   }, [publicKey, isAuthenticated, currentStep]);
 
@@ -669,6 +675,15 @@ const TokenCreator: React.FC = () => {
           </p>
         </div>
         
+        {connectionError && (
+          <Alert className="max-w-md mx-auto bg-red-900/20 border-red-500/30 mb-4">
+            <AlertTriangle className="h-4 w-4 text-red-400" />
+            <AlertDescription className="text-red-300">
+              {connectionError}
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <div className="max-w-md mx-auto bg-crypto-gray/30 p-6 rounded-lg space-y-4">
           <p className="text-sm text-crypto-light">
             This signature:
@@ -1026,8 +1041,8 @@ const TokenCreator: React.FC = () => {
 
   return (
     <div>
-      {currentStep === 1 && renderAuthStep()}
-      {currentStep > 1 && (
+      {(currentStep === 1 || showAuthStep) && renderAuthStep()}
+      {currentStep > 1 && !showAuthStep && (
         <Card className="border border-gray-800 bg-crypto-gray/30 backdrop-blur-sm">
           <CardHeader>
             <CardTitle>Create Your Meme Coin</CardTitle>

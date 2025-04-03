@@ -1,14 +1,29 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { Coins, Lock, Wallet } from 'lucide-react';
+import { Coins, Lock, Wallet, AlertTriangle, Loader2 } from 'lucide-react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ConnectWalletPromptProps {
   children?: React.ReactNode;
 }
 
 const ConnectWalletPrompt: React.FC<ConnectWalletPromptProps> = ({ children }) => {
+  const { connecting, wallet, wallets } = useWallet();
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  
+  // Clear error when starting to connect
+  React.useEffect(() => {
+    if (connecting) {
+      setConnectionError(null);
+    }
+  }, [connecting]);
+  
+  // Check if wallet adapters are available
+  const hasWalletAdapters = wallets && wallets.length > 0;
+
   return (
     <Card className="border border-solana/20 bg-crypto-gray/50 backdrop-blur-sm shadow-lg max-w-xl mx-auto">
       <CardHeader className="border-b border-gray-800">
@@ -17,6 +32,15 @@ const ConnectWalletPrompt: React.FC<ConnectWalletPromptProps> = ({ children }) =
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-6">
+        {connectionError && (
+          <Alert className="mb-4 bg-red-900/20 border-red-500/30">
+            <AlertTriangle className="h-4 w-4 text-red-500" />
+            <AlertDescription className="text-red-300">
+              {connectionError}
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <div className="text-center space-y-6 py-6">
           <div className="w-20 h-20 mx-auto rounded-full border-2 border-solana/30 flex items-center justify-center bg-crypto-gray">
             <Lock className="h-10 w-10 text-solana" />
@@ -37,8 +61,21 @@ const ConnectWalletPrompt: React.FC<ConnectWalletPromptProps> = ({ children }) =
           </div>
           
           <div className="pt-4 flex justify-center">
-            <WalletMultiButton className="!bg-gradient-to-r from-solana to-crypto-blue hover:opacity-90 transition-opacity" />
+            {connecting ? (
+              <div className="flex items-center gap-2 bg-solana/80 text-white py-2 px-4 rounded-md">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Connecting...</span>
+              </div>
+            ) : (
+              <WalletMultiButton className="!bg-gradient-to-r from-solana to-crypto-blue hover:opacity-90 transition-opacity" />
+            )}
           </div>
+          
+          {!hasWalletAdapters && (
+            <div className="mt-4 text-sm text-amber-400">
+              No wallet adapters detected. Please install a Solana wallet extension like Phantom or Solflare.
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

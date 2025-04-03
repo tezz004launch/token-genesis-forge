@@ -49,7 +49,10 @@ const App = () => {
   return (
     <BrowserRouter>
       <ConnectionProvider endpoint={endpoint}>
-        <WalletProvider wallets={wallets} autoConnect>
+        <WalletProvider wallets={wallets} autoConnect={{
+          onError: (error) => console.error('Wallet auto-connect error:', error),
+          delay: 1000 // Increase the delay before trying to auto-connect
+        }}>
           <WalletModalProvider>
             <SessionProvider>
               <QueryClientProvider client={queryClient}>
