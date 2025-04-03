@@ -1,3 +1,4 @@
+
 import {
   Connection,
   Keypair,
@@ -42,6 +43,8 @@ const PLATFORM_FEE = 0.05 * LAMPORTS_PER_SOL;
 const ESTIMATED_TX_FEE = 0.00025 * LAMPORTS_PER_SOL;
 // Token account creation fee
 const TOKEN_ACCOUNT_RENT = 0.002 * LAMPORTS_PER_SOL;
+// Connection timeout
+const CONNECTION_TIMEOUT = 30000; // 30 seconds
 
 // Fee breakdown structure
 export interface FeeBreakdown {
@@ -60,8 +63,16 @@ export const calculateTokenCreationFees = async (
   connection: Connection
 ): Promise<FeeBreakdown> => {
   try {
-    // Get actual rent exemption for mint
-    const mintRent = await getMinimumBalanceForRentExemptMint(connection);
+    // Set a timeout for the rent calculation request
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("Request timeout")), CONNECTION_TIMEOUT);
+    });
+
+    // Get actual rent exemption for mint with timeout
+    const mintRent = await Promise.race([
+      getMinimumBalanceForRentExemptMint(connection),
+      timeoutPromise
+    ]) as number;
     
     // Calculate total
     const total = mintRent + TOKEN_ACCOUNT_RENT + ESTIMATED_TX_FEE + PLATFORM_FEE;
@@ -116,8 +127,23 @@ export const createSPLToken = async ({
     const mintKeypair = Keypair.generate();
     const tokenMint = mintKeypair.publicKey;
     
-    // Get required lamports for token mint
-    const lamportsForMint = await getMinimumBalanceForRentExemptMint(connection);
+    // Get required lamports for token mint with timeout protection
+    let lamportsForMint: number;
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Request timeout")), CONNECTION_TIMEOUT);
+      });
+      
+      lamportsForMint = await Promise.race([
+        getMinimumBalanceForRentExemptMint(connection),
+        timeoutPromise
+      ]) as number;
+    } catch (error) {
+      console.warn("Error getting lamports for mint, using fallback value:", error);
+      // Use fallback value if request fails
+      lamportsForMint = 0.00203928 * LAMPORTS_PER_SOL;
+    }
+    
     console.log(`Mint rent exemption: ${lamportsForMint / LAMPORTS_PER_SOL} SOL`);
     
     // Calculate token supply with decimals
@@ -191,15 +217,47 @@ export const createSPLToken = async ({
       // This part requires the Metaplex SDK to be properly implemented
     }
     
+    // Get recent blockhash with a timeout
+    let recentBlockhash: string;
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Blockhash fetch timeout")), CONNECTION_TIMEOUT);
+      });
+      
+      const blockHashResponse = await Promise.race([
+        connection.getLatestBlockhash('confirmed'),
+        timeoutPromise
+      ]) as { blockhash: string; lastValidBlockHeight: number };
+      
+      recentBlockhash = blockHashResponse.blockhash;
+    } catch (error) {
+      console.error("Error getting recent blockhash:", error);
+      throw new Error("Network connection issue: Unable to fetch recent blockhash. Please try again with a different RPC endpoint.");
+    }
+    
     // Set transaction values
-    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    transaction.recentBlockhash = recentBlockhash;
     transaction.feePayer = wallet.publicKey;
 
     // Calculate total fees for this transaction
     const fees = await calculateTokenCreationFees(connection);
 
     // Double-check wallet balance before sending transaction
-    const walletBalance = await connection.getBalance(wallet.publicKey);
+    let walletBalance: number;
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Balance check timeout")), CONNECTION_TIMEOUT);
+      });
+      
+      walletBalance = await Promise.race([
+        connection.getBalance(wallet.publicKey),
+        timeoutPromise
+      ]) as number;
+    } catch (error) {
+      console.error("Error getting wallet balance:", error);
+      throw new Error("Network connection issue: Unable to verify wallet balance. Please try again with a different RPC endpoint.");
+    }
+    
     const requiredBalance = fees.total;
     
     if (walletBalance < requiredBalance) {
@@ -214,11 +272,20 @@ export const createSPLToken = async ({
     console.log(`Transaction sent: ${txId}`);
     
     // Wait for confirmation with longer timeout for mainnet
-    const confirmationTimeout = cluster === 'mainnet-beta' ? 60000 : 30000;
+    const confirmationTimeout = cluster === 'mainnet-beta' ? 60000 : 45000;
     try {
-      const confirmation = await connection.confirmTransaction(txId, 'confirmed');
-      if (confirmation.value.err) {
-        throw new Error(`Transaction confirmed with error: ${JSON.stringify(confirmation.value.err)}`);
+      // Using an explicit timeout promise
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Transaction confirmation timeout")), confirmationTimeout);
+      });
+      
+      const confirmation = await Promise.race([
+        connection.confirmTransaction(txId, 'confirmed'),
+        timeoutPromise
+      ]);
+      
+      if ((confirmation as any).value?.err) {
+        throw new Error(`Transaction confirmed with error: ${JSON.stringify((confirmation as any).value.err)}`);
       }
       console.log("Transaction confirmed successfully");
     } catch (confirmError) {

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Coins, ArrowRight, Droplets, BarChart3, Wallet, AlertTriangle } from 'lucide-react';
+import { Coins, ArrowRight, Droplets, BarChart3, Wallet, AlertTriangle, Wifi } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const TokenCreationInfo: React.FC = () => {
@@ -53,6 +53,13 @@ const TokenCreationInfo: React.FC = () => {
             <AlertTriangle className="h-4 w-4 text-amber-400" />
             <AlertDescription className="text-sm">
               <strong>Balance Tip:</strong> Make sure you have enough SOL in your wallet. If you see "Insufficient Balance" but believe you have enough funds, try refreshing your balance or switching to "Show Exact Values" in the payment step.
+            </AlertDescription>
+          </Alert>
+          
+          <Alert className="bg-blue-900/20 border-blue-500/30">
+            <Wifi className="h-4 w-4 text-blue-400" />
+            <AlertDescription className="text-sm">
+              <strong>Connection Issues?</strong> If you see "Balance Update Failed" or connection errors, try the "Change RPC" button in the payment step. This will connect you to a different Solana network endpoint.
             </AlertDescription>
           </Alert>
           

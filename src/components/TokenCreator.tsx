@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import StepIndicator from './StepIndicator';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { Slider } from '@/components/ui/slider';
 import { createSPLToken, calculateTokenCreationFees, FeeBreakdown } from '@/lib/solana/tokenService';
 import { TokenForm } from '@/types/token';
@@ -23,7 +23,9 @@ import {
   Globe,
   Twitter,
   MessageSquare,
-  RefreshCw
+  RefreshCw,
+  WifiOff,
+  Zap
 } from 'lucide-react';
 import {
   Tooltip,
@@ -37,11 +39,15 @@ import { useSession } from '@/contexts/SessionContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import AuthWallet from './AuthWallet';
 import TokenSummary from './TokenSummary';
+import { Switch } from '@/components/ui/switch';
 
 const PLATFORM_FEE = 0.05;
 const FEE_RECIPIENT = "FMZJ2zuacqYiyE8E9ysQxALBkcTvCohUCTpLGrCSCnUH";
 const BALANCE_BUFFER = 0.001;
 const BALANCE_REFRESH_INTERVAL = 5000; // 5 seconds
+const CONNECTION_RETRY_DELAY = 1000; // 1 second initial retry delay
+const MAX_RETRY_DELAY = 8000; // Max retry delay of 8 seconds
+const CONNECTION_TIMEOUT = 10000; // 10 seconds timeout for connections
 
 const STEPS = [
   'Connect Wallet',
@@ -57,17 +63,21 @@ const STEPS = [
   'Confirmation'
 ];
 
-// List of multiple RPC endpoints to try if one fails
+// Expanded list of RPC endpoints with more reliable options
 const RPC_ENDPOINTS = {
   'devnet': [
     'https://api.devnet.solana.com',
     'https://solana-devnet-rpc.allthatnode.com',
-    'https://devnet.helius-rpc.com/?api-key=15319106-5848-42fd-83c2-b9bdfe17f12c'
+    'https://devnet.helius-rpc.com/?api-key=15319106-5848-42fd-83c2-b9bdfe17f12c',
+    'https://mango.devnet.rpcpool.com',
+    'https://devnet.genesysgo.net'
   ],
   'mainnet-beta': [
     'https://api.mainnet-beta.solana.com',
     'https://solana-mainnet.g.alchemy.com/v2/demo',
-    'https://rpc.ankr.com/solana'
+    'https://rpc.ankr.com/solana',
+    'https://mainnet.helius-rpc.com/?api-key=15319106-5848-42fd-83c2-b9bdfe17f12c',
+    'https://solana-api.projectserum.com'
   ]
 };
 
@@ -86,6 +96,10 @@ const TokenCreator: React.FC = () => {
   const [feeBreakdown, setFeeBreakdown] = useState<FeeBreakdown | null>(null);
   const [balanceRefreshAttempts, setBalanceRefreshAttempts] = useState(0);
   const [lastBalanceUpdateTime, setLastBalanceUpdateTime] = useState<number | null>(null);
+  const [retryDelay, setRetryDelay] = useState(CONNECTION_RETRY_DELAY);
+  const [connectionState, setConnectionState] = useState<'connected' | 'unstable' | 'failed'>('connected');
+  const [showExactValues, setShowExactValues] = useState(false);
+  const [currentRpcIndex, setCurrentRpcIndex] = useState(0);
 
   const [form, setForm] = useState<TokenForm>({
     name: '',
@@ -124,29 +138,56 @@ const TokenCreator: React.FC = () => {
     const loadFees = async () => {
       if (connection) {
         try {
-          const selectedConnection = new Connection(
-            selectedNetwork === 'mainnet-beta' 
-              ? 'https://api.mainnet-beta.solana.com' 
-              : 'https://api.devnet.solana.com',
-            'confirmed'
-          );
+          // Use our improved connection creation function
+          const selectedConnection = createReliableConnection(selectedNetwork);
           const fees = await calculateTokenCreationFees(selectedConnection);
           setFeeBreakdown(fees);
         } catch (error) {
           console.error("Error calculating fees:", error);
+          toast({
+            title: "Fee Calculation Error",
+            description: "Could not calculate transaction fees. Using estimated values.",
+            variant: "destructive"
+          });
         }
       }
     };
     
     loadFees();
-  }, [connection, selectedNetwork]);
+  }, [connection, selectedNetwork, toast]);
 
-  // Function to create a connection with fallback to multiple RPC endpoints
-  const createReliableConnection = useCallback((network: 'devnet' | 'mainnet-beta'): Connection => {
+  // Function to create a connection with improved reliability
+  const createReliableConnection = useCallback((network: 'devnet' | 'mainnet-beta', rpcIndexOverride?: number): Connection => {
+    // Use provided index or current index
+    const rpcIndex = rpcIndexOverride !== undefined ? rpcIndexOverride : currentRpcIndex;
     const endpoints = RPC_ENDPOINTS[network];
-    // Try the first endpoint
-    return new Connection(endpoints[0], 'confirmed');
-  }, []);
+    const endpoint = endpoints[rpcIndex % endpoints.length];
+    
+    // Create connection with commitment and timeouts
+    return new Connection(endpoint, {
+      commitment: 'confirmed',
+      confirmTransactionInitialTimeout: CONNECTION_TIMEOUT,
+      disableRetryOnRateLimit: false
+    });
+  }, [currentRpcIndex]);
+
+  // Function to cycle through RPC endpoints
+  const switchRpcEndpoint = useCallback(() => {
+    // Set next RPC index
+    setCurrentRpcIndex(prev => (prev + 1) % RPC_ENDPOINTS[selectedNetwork].length);
+    // Reset connection state
+    setConnectionState('connected');
+    // Reset retry delay
+    setRetryDelay(CONNECTION_RETRY_DELAY);
+    
+    toast({
+      title: "Switching RPC Endpoint",
+      description: "Trying a different Solana network connection...",
+    });
+    
+    // Force a balance refresh with the new endpoint
+    setTimeout(() => refreshWalletBalance(true), 500);
+  }, [selectedNetwork, toast]);
 
   const refreshWalletBalance = useCallback(async (force: boolean = false) => {
     if (!publicKey) return;
@@ -159,61 +200,86 @@ const TokenCreator: React.FC = () => {
     try {
       setIsLoadingBalance(true);
       
-      // Use reliable connection creation
+      // Use current RPC index to create connection
       const reliableConnection = createReliableConnection(selectedNetwork);
       
-      let retries = 0;
       let success = false;
       let balance = 0;
+      let attemptCount = 0;
+      const maxAttempts = 2; // Maximum attempts per RPC endpoint
       
-      // Try up to 3 times with different endpoints
-      while (retries < 3 && !success) {
+      while (attemptCount < maxAttempts && !success) {
         try {
-          balance = await reliableConnection.getBalance(publicKey);
-          success = true;
-        } catch (error) {
-          console.warn(`Balance fetch attempt ${retries + 1} failed, trying next endpoint...`);
-          retries++;
+          // Set timeout for the balance fetch operation
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Balance fetch timeout")), CONNECTION_TIMEOUT);
+          });
           
-          if (retries < 3) {
-            // Try a different endpoint
-            const nextEndpoint = RPC_ENDPOINTS[selectedNetwork][retries % RPC_ENDPOINTS[selectedNetwork].length];
-            reliableConnection['_rpcEndpoint'] = nextEndpoint;
-            await new Promise(r => setTimeout(r, 300)); // Small delay before retry
+          // Attempt to fetch balance with timeout
+          balance = await Promise.race([
+            reliableConnection.getBalance(publicKey),
+            timeoutPromise
+          ]) as number;
+          
+          success = true;
+          setConnectionState('connected');
+          
+        } catch (error) {
+          attemptCount++;
+          console.warn(`Balance fetch attempt ${attemptCount} failed: ${error}`);
+          
+          if (attemptCount < maxAttempts) {
+            // Small delay before retry with same endpoint
+            await new Promise(r => setTimeout(r, 500));
           }
         }
       }
       
-      if (success) {
-        setBalanceRefreshAttempts(0); // Reset attempts counter on success
+      // If all attempts with current endpoint failed, increment failure counter
+      if (!success) {
+        setBalanceRefreshAttempts(prev => prev + 1);
+        
+        // After consecutive failures, start showing connection warning
+        if (balanceRefreshAttempts >= 1) {
+          setConnectionState('unstable');
+        }
+        
+        // After more consecutive failures, mark connection as failed
+        if (balanceRefreshAttempts >= 3) {
+          setConnectionState('failed');
+          
+          toast({
+            title: "Network Connection Issues",
+            description: "We're having trouble connecting to the Solana network. Try switching to a different RPC endpoint.",
+            variant: "destructive",
+          });
+        }
+        
+        // Use exponential backoff for retries, but cap at MAX_RETRY_DELAY
+        const newRetryDelay = Math.min(retryDelay * 1.5, MAX_RETRY_DELAY);
+        setRetryDelay(newRetryDelay);
+      } else {
+        // On success, reset counters and update balance
+        setBalanceRefreshAttempts(0);
+        setRetryDelay(CONNECTION_RETRY_DELAY);
         setWalletBalance(balance / LAMPORTS_PER_SOL);
         setLastBalanceUpdateTime(Date.now());
         console.log(`Refreshed wallet balance: ${balance / LAMPORTS_PER_SOL} SOL`);
-      } else {
-        // If all attempts failed, increment the counter
-        setBalanceRefreshAttempts(prev => prev + 1);
-        
-        // After 3 failed refresh attempts, show an error toast
-        if (balanceRefreshAttempts >= 3) {
-          toast({
-            title: "Balance Update Failed",
-            description: "We're having trouble connecting to the Solana network. Please try again later.",
-            variant: "destructive"
-          });
-          setBalanceRefreshAttempts(0); // Reset after showing error
-        }
       }
     } catch (error) {
-      console.error("Error fetching balance:", error);
+      console.error("Error in balance refresh flow:", error);
+      setConnectionState('failed');
+      
       toast({
         title: "Balance Update Failed",
-        description: "Could not fetch your wallet balance. Please refresh manually.",
+        description: "Could not fetch your wallet balance. Please try switching RPC endpoints.",
         variant: "destructive"
       });
     } finally {
       setIsLoadingBalance(false);
     }
-  }, [publicKey, connection, selectedNetwork, balanceRefreshAttempts, lastBalanceUpdateTime, toast, createReliableConnection]);
+  }, [publicKey, selectedNetwork, balanceRefreshAttempts, lastBalanceUpdateTime, 
+      toast, createReliableConnection, retryDelay]);
 
   // Effect for initial balance fetch and periodic refreshes
   useEffect(() => {
@@ -221,16 +287,24 @@ const TokenCreator: React.FC = () => {
       refreshWalletBalance(true);
       
       const intervalId = setInterval(() => {
-        refreshWalletBalance();
+        // Only auto-refresh if connection isn't marked as failed
+        if (connectionState !== 'failed') {
+          refreshWalletBalance();
+        }
       }, BALANCE_REFRESH_INTERVAL);
       
       return () => clearInterval(intervalId);
     }
-  }, [publicKey, refreshWalletBalance, selectedNetwork]);
+  }, [publicKey, refreshWalletBalance, selectedNetwork, connectionState]);
 
   // Extra effect to refresh balance when network is changed
   useEffect(() => {
     if (publicKey) {
+      // Reset RPC index when network changes
+      setCurrentRpcIndex(0);
+      // Reset connection state
+      setConnectionState('connected');
+      // Force balance refresh
       refreshWalletBalance(true);
     }
   }, [selectedNetwork, publicKey, refreshWalletBalance]);
@@ -411,6 +485,7 @@ const TokenCreator: React.FC = () => {
         description: "Please approve the transaction in your wallet",
       });
       
+      // Use our improved connection creation function
       const selectedConnection = createReliableConnection(selectedNetwork);
       
       const result = await createSPLToken({
@@ -505,6 +580,52 @@ const TokenCreator: React.FC = () => {
     );
   };
 
+  const renderConnectionStatus = () => {
+    if (connectionState === 'connected') {
+      return null;
+    }
+    
+    if (connectionState === 'unstable') {
+      return (
+        <Alert className="bg-amber-900/20 border-amber-500/30 mb-4">
+          <AlertTriangle className="h-4 w-4 text-amber-400" />
+          <AlertTitle>Unstable Connection</AlertTitle>
+          <AlertDescription>
+            Your connection to the Solana network is unstable. This may cause balance refresh issues.
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={switchRpcEndpoint}
+              className="mt-2 text-xs border-amber-500/30 hover:bg-amber-500/10"
+            >
+              <Zap className="h-3 w-3 mr-1" />
+              Try Different RPC
+            </Button>
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    
+    return (
+      <Alert className="bg-red-900/20 border-red-500/30 mb-4">
+        <WifiOff className="h-4 w-4 text-red-400" />
+        <AlertTitle>Connection Failed</AlertTitle>
+        <AlertDescription>
+          We're having trouble connecting to the Solana network. Please try a different RPC endpoint.
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={switchRpcEndpoint}
+            className="mt-2 text-xs border-red-500/30 hover:bg-red-500/10"
+          >
+            <Zap className="h-3 w-3 mr-1" />
+            Try Different RPC ({currentRpcIndex + 1}/{RPC_ENDPOINTS[selectedNetwork].length})
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  };
+
   const renderPaymentStep = () => {
     return (
       <div className="space-y-6">
@@ -514,6 +635,8 @@ const TokenCreator: React.FC = () => {
             Review payment details before creating your meme coin
           </p>
         </div>
+        
+        {renderConnectionStatus()}
         
         <Alert className="bg-green-900/20 border-green-500/20">
           <Shield className="h-4 w-4 text-green-500" />
@@ -545,7 +668,11 @@ const TokenCreator: React.FC = () => {
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              <span>{feeBreakdown ? (feeBreakdown.mintAccountRent / LAMPORTS_PER_SOL).toFixed(5) : "0.00200"} SOL</span>
+              <span>
+                {showExactValues
+                  ? feeBreakdown ? (feeBreakdown.mintAccountRent / LAMPORTS_PER_SOL).toFixed(8) : "0.00200000"
+                  : feeBreakdown ? (feeBreakdown.mintAccountRent / LAMPORTS_PER_SOL).toFixed(5) : "0.00200"} SOL
+              </span>
             </div>
             <div className="flex justify-between">
               <div className="flex items-start gap-2">
@@ -561,7 +688,11 @@ const TokenCreator: React.FC = () => {
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              <span>{feeBreakdown ? (feeBreakdown.tokenAccountRent / LAMPORTS_PER_SOL).toFixed(5) : "0.00200"} SOL</span>
+              <span>
+                {showExactValues
+                  ? feeBreakdown ? (feeBreakdown.tokenAccountRent / LAMPORTS_PER_SOL).toFixed(8) : "0.00200000"
+                  : feeBreakdown ? (feeBreakdown.tokenAccountRent / LAMPORTS_PER_SOL).toFixed(5) : "0.00200"} SOL
+              </span>
             </div>
             <div className="flex justify-between">
               <div className="flex items-start gap-2">
@@ -577,7 +708,11 @@ const TokenCreator: React.FC = () => {
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              <span>{feeBreakdown ? (feeBreakdown.transactionFee / LAMPORTS_PER_SOL).toFixed(5) : "0.00025"} SOL</span>
+              <span>
+                {showExactValues
+                  ? feeBreakdown ? (feeBreakdown.transactionFee / LAMPORTS_PER_SOL).toFixed(8) : "0.00025000" 
+                  : feeBreakdown ? (feeBreakdown.transactionFee / LAMPORTS_PER_SOL).toFixed(5) : "0.00025"} SOL
+              </span>
             </div>
             <div className="border-t border-blue-500/20 pt-2 mt-2"></div>
             <div className="flex justify-between font-medium">
@@ -603,7 +738,9 @@ const TokenCreator: React.FC = () => {
           <div className="flex items-center justify-between mb-4">
             <span className="text-sm text-muted-foreground">Total Required</span>
             <span className="font-medium text-lg">
-              {feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(4) : PLATFORM_FEE} SOL
+              {showExactValues
+                ? feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(8) : PLATFORM_FEE.toFixed(8)
+                : feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(4) : PLATFORM_FEE.toFixed(4)} SOL
             </span>
           </div>
           
@@ -625,7 +762,9 @@ const TokenCreator: React.FC = () => {
               <span className={`font-medium ${
                 hasSufficientBalance() ? 'text-green-400' : 'text-red-500'
               }`}>
-                {walletBalance !== null ? walletBalance.toFixed(4) : "0.0000"} SOL
+                {walletBalance !== null 
+                  ? showExactValues ? walletBalance.toFixed(8) : walletBalance.toFixed(4) 
+                  : "0.0000"} SOL
               </span>
               {isLoadingBalance && (
                 <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
@@ -638,9 +777,68 @@ const TokenCreator: React.FC = () => {
           <div className="flex items-center justify-between">
             <span className="font-medium">Total Due</span>
             <div className="flex items-center space-x-2">
-              <span className="font-bold text-lg">{feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(4) : PLATFORM_FEE} SOL</span>
+              <span className="font-bold text-lg">
+                {showExactValues
+                  ? feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(8) : PLATFORM_FEE.toFixed(8)
+                  : feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(4) : PLATFORM_FEE.toFixed(4)} SOL
+              </span>
               <Coins className="text-solana h-5 w-5" />
             </div>
+          </div>
+          
+          {/* Add toggle for displaying exact values */}
+          <div className="mt-4 pt-3 border-t border-gray-700">
+            <div className="flex items-center justify-between">
+              <label htmlFor="show-exact" className="text-sm text-muted-foreground cursor-pointer">
+                Show Exact Values
+              </label>
+              <Switch
+                id="show-exact"
+                checked={showExactValues}
+                onCheckedChange={setShowExactValues}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Enable this to display exact SOL values with more decimal places.
+            </p>
+          </div>
+          
+          {/* RPC Status */}
+          <div className="mt-4 pt-3 border-t border-gray-700 flex justify-between items-center">
+            <div>
+              <span className="text-sm text-muted-foreground">
+                RPC Connection:
+              </span>
+              <div className="mt-1 flex items-center gap-2">
+                {connectionState === 'connected' && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    <span className="text-xs text-green-400">Connected</span>
+                  </div>
+                )}
+                {connectionState === 'unstable' && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span className="text-xs text-amber-400">Unstable</span>
+                  </div>
+                )}
+                {connectionState === 'failed' && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                    <span className="text-xs text-red-400">Failed</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={switchRpcEndpoint}
+              className="text-xs"
+            >
+              <Zap className="h-3 w-3 mr-1" />
+              Change RPC ({currentRpcIndex + 1}/{RPC_ENDPOINTS[selectedNetwork].length})
+            </Button>
           </div>
         </div>
         
@@ -657,723 +855,4 @@ const TokenCreator: React.FC = () => {
         
         <div className="pt-4">
           <Button 
-            className="w-full bg-solana hover:bg-solana-dark transition-colors"
-            size="lg"
-            disabled={
-              isCreating || !hasSufficientBalance()
-            }
-            onClick={() => nextStep()}
-          >
-            {isCreating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating Meme Coin...
-              </>
-            ) : (
-              "Next"
-            )}
-          </Button>
-          
-          {!hasSufficientBalance() && walletBalance !== null && (
-            <div className="text-red-500 text-sm text-center mt-2 space-y-1">
-              <p>
-                Insufficient balance. You need at least {feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(4) : PLATFORM_FEE} SOL.
-              </p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => refreshWalletBalance(true)}
-                className="mt-1 text-xs border-red-500/30 hover:bg-red-500/10"
-              >
-                <RefreshCw className="h-3 w-3 mr-1" />
-                Refresh Balance
-              </Button>
-            </div>
-          )}
-          {walletBalance === null && (
-            <div className="text-amber-500 text-sm text-center mt-2 flex flex-col items-center space-y-1">
-              <p className="flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" />
-                Unable to fetch wallet balance
-              </p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => refreshWalletBalance(true)}
-                className="mt-1 text-xs border-amber-500/30 hover:bg-amber-500/10"
-              >
-                <RefreshCw className="h-3 w-3 mr-1" />
-                Refresh Balance
-              </Button>
-            </div>
-          )}
-          {isCreating && (
-            <div className="mt-4">
-              <Progress value={progress} className="bg-crypto-gray h-2" />
-              <p className="text-xs text-center mt-2 text-muted-foreground">
-                {progress < 100 ? "Processing your transaction..." : "Token created successfully!"}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderStepContent = () => {
-    if (currentStep === 0) {
-      return (
-        <div className="text-center space-y-6 py-6">
-          <h3 className="text-xl font-medium">Connect Your Wallet to Begin</h3>
-          <p className="text-crypto-light">
-            Please connect your Solana wallet to use our token creation service.
-          </p>
-        </div>
-      );
-    }
-
-    if (currentStep === 1) {
-      return renderAuthStep();
-    }
-    
-    switch (currentStep) {
-      case 2:
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="name">Token Name <span className="text-red-500">*</span></Label>
-              <Input
-                id="name"
-                name="name"
-                placeholder="My Meme Token"
-                value={form.name}
-                onChange={handleInputChange}
-                className={errors.name ? "border-red-500" : ""}
-              />
-              {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Label htmlFor="symbol">Token Symbol <span className="text-red-500">*</span></Label>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Max 8 characters. Common format is all caps (e.g., "PEPE", "DOGE").</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <Input
-                id="symbol"
-                name="symbol"
-                placeholder="MEME"
-                maxLength={8}
-                value={form.symbol}
-                onChange={handleInputChange}
-                className={errors.symbol ? "border-red-500" : ""}
-              />
-              {errors.symbol && <p className="text-red-500 text-sm">{errors.symbol}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Token Description <span className="text-gray-500">(optional)</span></Label>
-              <Textarea
-                id="description"
-                name="description"
-                placeholder="Describe your meme coin's purpose and story..."
-                value={form.description}
-                onChange={handleInputChange}
-                rows={4}
-              />
-            </div>
-          </div>
-        );
-
-      case 3:
-        return (
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label htmlFor="supply">Total Supply <span className="text-red-500">*</span></Label>
-                  <p className="text-sm text-muted-foreground">
-                    How many tokens will exist in total
-                  </p>
-                </div>
-                <div className="w-1/3">
-                  <Input
-                    id="supply"
-                    name="supply"
-                    type="number"
-                    min="1"
-                    value={form.supply}
-                    onChange={handleInputChange}
-                    className={errors.supply ? "border-red-500" : ""}
-                  />
-                  {errors.supply && <p className="text-red-500 text-sm">{errors.supply}</p>}
-                </div>
-              </div>
-              
-              <div className="bg-crypto-gray/30 p-4 rounded-md">
-                <p className="text-sm text-crypto-light">
-                  Popular meme coins often have large supplies (billions or trillions). All tokens will initially be sent to your connected wallet.
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label>Decimals <span className="text-red-500">*</span></Label>
-                  <p className="text-sm text-muted-foreground">
-                    How divisible your token will be (like cents in a dollar)
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{form.decimals}</span>
-                </div>
-              </div>
-              
-              <Slider
-                value={[form.decimals]}
-                min={0}
-                max={9}
-                step={1}
-                onValueChange={(vals) => setForm(prev => ({ ...prev, decimals: vals[0] }))}
-              />
-              
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>0 (No decimals)</span>
-                <span>9 (Max divisibility)</span>
-              </div>
-              
-              <div className="bg-crypto-gray/30 p-4 rounded-md">
-                <p className="text-sm text-crypto-light">
-                  Most meme coins use 9 decimals (like SOL). SHIB uses 8, DOGE uses 8.
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 4:
-        return (
-          <div className="space-y-6">
-            <div className="space-y-1 mb-4">
-              <h3 className="text-lg font-medium">Social Links</h3>
-              <p className="text-sm text-muted-foreground">
-                Add your project's social media links (optional)
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <Globe className="h-5 w-5 text-muted-foreground" />
-                <div className="flex-1">
-                  <Label htmlFor="website" className="mb-2">Website URL</Label>
-                  <Input
-                    id="website"
-                    name="website"
-                    placeholder="https://yourmemetoken.com"
-                    value={form.website}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <Twitter className="h-5 w-5 text-muted-foreground" />
-                <div className="flex-1">
-                  <Label htmlFor="twitter" className="mb-2">X (Twitter)</Label>
-                  <Input
-                    id="twitter"
-                    name="twitter"
-                    placeholder="https://x.com/yourmemetoken"
-                    value={form.twitter}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <MessageSquare className="h-5 w-5 text-muted-foreground" />
-                <div className="flex-1">
-                  <Label htmlFor="telegram" className="mb-2">Telegram</Label>
-                  <Input
-                    id="telegram"
-                    name="telegram"
-                    placeholder="https://t.me/yourmemetoken"
-                    value={form.telegram}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-crypto-gray/30 p-4 rounded-md mt-4">
-              <p className="text-sm text-crypto-light">
-                Adding social links helps establish credibility for your meme coin and makes it easier for people to follow your project.
-              </p>
-            </div>
-          </div>
-        );
-
-      case 5:
-        return (
-          <div className="space-y-6">
-            <div className="space-y-1">
-              <h3 className="text-lg font-medium">Revoke Authorities</h3>
-              <p className="text-sm text-muted-foreground">
-                Tokens are created with several authorities by default. It is recommended to revoke all these authorities to gain more trust from investors.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between mb-4">
-              <span>Security Level:</span>
-              <div className="flex items-center gap-2">
-                {securityLevel === 'low' && (
-                  <span className="px-2 py-1 bg-red-600/20 text-red-400 rounded text-xs font-medium flex items-center gap-1">
-                    <AlertTriangle size={12} /> Low
-                  </span>
-                )}
-                {securityLevel === 'medium' && (
-                  <span className="px-2 py-1 bg-yellow-600/20 text-yellow-400 rounded text-xs font-medium flex items-center gap-1">
-                    <Shield size={12} /> Medium
-                  </span>
-                )}
-                {securityLevel === 'high' && (
-                  <span className="px-2 py-1 bg-green-600/20 text-green-400 rounded text-xs font-medium flex items-center gap-1">
-                    <Shield size={12} /> High
-                  </span>
-                )}
-              </div>
-            </div>
-            
-            <div className="space-y-4 pt-2">
-              <div className="flex items-start space-x-3">
-                <Checkbox
-                  id="revokeFreezeAuthority"
-                  checked={form.revokeFreezeAuthority}
-                  onCheckedChange={(checked) => handleCheckboxChange(!!checked, 'revokeFreezeAuthority')}
-                />
-                <div className="space-y-1">
-                  <Label
-                    htmlFor="revokeFreezeAuthority"
-                    className="text-base font-medium cursor-pointer"
-                  >
-                    Revoke Freeze Authority
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Removes the ability to freeze token accounts.
-                    Recommended for decentralized tokens and DeFi compatibility.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-3">
-                <Checkbox
-                  id="revokeMintAuthority"
-                  checked={form.revokeMintAuthority}
-                  onCheckedChange={(checked) => handleCheckboxChange(!!checked, 'revokeMintAuthority')}
-                />
-                <div className="space-y-1">
-                  <Label
-                    htmlFor="revokeMintAuthority"
-                    className="text-base font-medium cursor-pointer"
-                  >
-                    Revoke Mint Authority
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Permanently gives up the ability to create more tokens in the future.
-                    This makes your token supply fixed and unchangeable.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-3">
-                <Checkbox
-                  id="immutableMetadata"
-                  checked={form.immutableMetadata}
-                  onCheckedChange={(checked) => handleCheckboxChange(!!checked, 'immutableMetadata')}
-                />
-                <div className="space-y-1">
-                  <Label
-                    htmlFor="immutableMetadata"
-                    className="text-base font-medium cursor-pointer"
-                  >
-                    Immutable Metadata
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Enable to make metadata immutable to get more trust.
-                    If active, the metadata becomes immutable and cannot be changed.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-amber-950/20 border border-amber-500/20 p-4 rounded-md mt-4">
-              <p className="text-sm text-amber-200/70">
-                <strong>Important:</strong> These options are completely free without additional fees! Revoking authorities is permanent and cannot be undone.
-                Make your decision carefully.
-              </p>
-            </div>
-          </div>
-        );
-
-      case 6:
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label>Token Logo <span className="text-red-500">*</span></Label>
-              <p className="text-sm text-muted-foreground">
-                Upload a logo for your meme coin (PNG format recommended)
-              </p>
-            </div>
-            
-            <ImageUpload onImageUpload={handleImageUpload} currentImage={form.image} />
-            
-            <div className="bg-crypto-gray/30 p-4 rounded-md">
-              <p className="text-sm text-crypto-light">
-                Creative and recognizable logos are key for successful meme coins.
-                For best results, use a square PNG image (1000x1000px recommended).
-              </p>
-            </div>
-          </div>
-        );
-
-      case 7:
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium">Network Selection</h3>
-              <p className="text-sm text-muted-foreground">
-                Choose the network where you want to create your token
-              </p>
-            </div>
-            
-            <div className="space-y-6">
-              <div 
-                className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                  selectedNetwork === 'devnet' 
-                    ? 'bg-purple-900/20 border-purple-500/50' 
-                    : 'bg-crypto-gray/30 border-gray-700 hover:border-gray-600'
-                }`}
-                onClick={() => setSelectedNetwork('devnet')}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-4 h-4 rounded-full ${
-                    selectedNetwork === 'devnet' ? 'bg-purple-500' : 'bg-gray-600'
-                  }`}></div>
-                  <h4 className="font-medium">Devnet</h4>
-                </div>
-                <p className="pl-7 mt-2 text-sm text-crypto-light">
-                  Solana's test network. Tokens created here have no real value.
-                  Perfect for testing and development.
-                </p>
-              </div>
-              
-              <div 
-                className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                  selectedNetwork === 'mainnet-beta' 
-                    ? 'bg-green-900/20 border-green-500/50' 
-                    : 'bg-crypto-gray/30 border-gray-700 hover:border-gray-600'
-                }`}
-                onClick={() => setSelectedNetwork('mainnet-beta')}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-4 h-4 rounded-full ${
-                    selectedNetwork === 'mainnet-beta' ? 'bg-green-500' : 'bg-gray-600'
-                  }`}></div>
-                  <h4 className="font-medium">Mainnet</h4>
-                </div>
-                <p className="pl-7 mt-2 text-sm text-crypto-light">
-                  Solana's production network. Tokens created here can have real value.
-                  Use this for actual token launches.
-                </p>
-              </div>
-            </div>
-            
-            {selectedNetwork === 'mainnet-beta' && (
-              <div className="bg-yellow-900/20 border border-yellow-500/30 p-4 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle size={18} className="text-yellow-500 mt-0.5" />
-                  <div className="space-y-1">
-                    <h4 className="font-medium">Important: Mainnet Transaction</h4>
-                    <p className="text-sm">
-                      You're about to create a token on Solana's mainnet. This will use 
-                      real SOL from your wallet and cannot be reversed.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-
-      case 8:
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium">Review Your Meme Coin</h3>
-              <p className="text-sm text-muted-foreground">
-                Please verify all details before proceeding to payment
-              </p>
-            </div>
-            
-            <Alert className="bg-green-900/20 border-green-500/20">
-              <Shield className="h-4 w-4 text-green-500" />
-              <AlertTitle>Authenticated Creation</AlertTitle>
-              <AlertDescription>
-                Your wallet has been authenticated, ensuring only you can create this token.
-              </AlertDescription>
-            </Alert>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Name</p>
-                <p className="text-base">{form.name}</p>
-              </div>
-              
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Symbol</p>
-                <p className="text-base">{form.symbol}</p>
-              </div>
-              
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Total Supply</p>
-                <p className="text-base">{form.supply.toLocaleString()}</p>
-              </div>
-              
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Decimals</p>
-                <p className="text-base">{form.decimals}</p>
-              </div>
-              
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Network</p>
-                <p className="text-base flex items-center gap-2">
-                  {selectedNetwork === 'mainnet-beta' ? (
-                    <>
-                      <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                      <span>Mainnet</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                      <span>Devnet</span>
-                    </>
-                  )}
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Security</p>
-                <div className="flex items-center gap-2">
-                  {securityLevel === 'low' && (
-                    <span className="px-2 py-1 bg-red-600/20 text-red-400 rounded text-xs font-medium">Low</span>
-                  )}
-                  {securityLevel === 'medium' && (
-                    <span className="px-2 py-1 bg-yellow-600/20 text-yellow-400 rounded text-xs font-medium">Medium</span>
-                  )}
-                  {securityLevel === 'high' && (
-                    <span className="px-2 py-1 bg-green-600/20 text-green-400 rounded text-xs font-medium">High</span>
-                  )}
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Authorities Revoked</p>
-                <p className="text-base">
-                  {[
-                    form.revokeMintAuthority ? "Mint" : "",
-                    form.revokeFreezeAuthority ? "Freeze" : "",
-                    form.immutableMetadata ? "Metadata" : ""
-                  ].filter(Boolean).join(", ") || "None"}
-                </p>
-              </div>
-              
-              {form.description && (
-                <div className="space-y-2 col-span-2">
-                  <p className="text-sm font-medium text-muted-foreground">Description</p>
-                  <p className="text-base">{form.description}</p>
-                </div>
-              )}
-              
-              <div className="space-y-2 col-span-2">
-                <p className="text-sm font-medium text-muted-foreground">Social Links</p>
-                <div className="space-y-2">
-                  {form.website && (
-                    <div className="flex items-center gap-2">
-                      <Globe size={14} className="text-muted-foreground" />
-                      <a href={form.website} target="_blank" rel="noopener noreferrer" className="text-solana hover:underline">
-                        {form.website}
-                      </a>
-                    </div>
-                  )}
-                  
-                  {form.twitter && (
-                    <div className="flex items-center gap-2">
-                      <Twitter size={14} className="text-muted-foreground" />
-                      <a href={form.twitter} target="_blank" rel="noopener noreferrer" className="text-solana hover:underline">
-                        {form.twitter}
-                      </a>
-                    </div>
-                  )}
-                  
-                  {form.telegram && (
-                    <div className="flex items-center gap-2">
-                      <MessageSquare size={14} className="text-muted-foreground" />
-                      <a href={form.telegram} target="_blank" rel="noopener noreferrer" className="text-solana hover:underline">
-                        {form.telegram}
-                      </a>
-                    </div>
-                  )}
-                  
-                  {!form.website && !form.twitter && !form.telegram && (
-                    <p className="text-muted-foreground text-sm">No social links provided</p>
-                  )}
-                </div>
-              </div>
-              
-              {form.image && (
-                <div className="space-y-2 col-span-2">
-                  <p className="text-sm font-medium text-muted-foreground">Token Logo</p>
-                  <img 
-                    src={URL.createObjectURL(form.image)} 
-                    alt="Token Logo" 
-                    className="w-16 h-16 rounded-full object-cover border border-gray-700" 
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        );
-
-      case 9:
-        return renderPaymentStep();
-
-      case 10:
-        if (tokenAddress && creationTxHash) {
-          return (
-            <TokenSummary
-              name={form.name}
-              symbol={form.symbol}
-              decimals={form.decimals}
-              totalSupply={form.supply}
-              mintAddress={tokenAddress}
-              txId={creationTxHash}
-              cluster={selectedNetwork}
-              onBack={resetCreator}
-            />
-          );
-        }
-        
-        return (
-          <div className="text-center space-y-6 py-6">
-            <div className="w-20 h-20 mx-auto rounded-full border-2 border-crypto-green/30 flex items-center justify-center bg-crypto-green/10">
-              <Check className="h-10 w-10 text-crypto-green" />
-            </div>
-            
-            <h3 className="text-2xl font-medium">Meme Coin Created Successfully!</h3>
-            
-            <Alert className="bg-green-900/20 border-green-500/20 max-w-md mx-auto">
-              <Shield className="h-4 w-4 text-green-500" />
-              <AlertTitle>Authenticated Creation Complete</AlertTitle>
-              <AlertDescription>
-                Your token was created securely with your authenticated wallet.
-              </AlertDescription>
-            </Alert>
-            
-            <div className="bg-crypto-gray/30 p-6 rounded-md max-w-md mx-auto">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Token Name</p>
-                  <p className="font-medium">{form.name} ({form.symbol})</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Network</p>
-                  <p className="font-medium">{selectedNetwork === 'mainnet-beta' ? 'Mainnet' : 'Devnet'}</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Token Address</p>
-                  <a 
-                    href={`https://explorer.solana.com/address/${tokenAddress}?cluster=${selectedNetwork}`}
-                    target="_blank"
-                    rel="noopener noreferrer" 
-                    className="text-sm font-mono text-solana hover:underline break-all"
-                  >
-                    {tokenAddress || "Token address would appear here"}
-                  </a>
-                </div>
-                
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Transaction Hash</p>
-                  <a 
-                    href={`https://explorer.solana.com/tx/${creationTxHash}?cluster=${selectedNetwork}`}
-                    target="_blank"
-                    rel="noopener noreferrer" 
-                    className="text-sm font-mono text-solana hover:underline break-all"
-                  >
-                    {creationTxHash || "Transaction hash would appear here"}
-                  </a>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex flex-col items-center gap-2 pt-4">
-              <Button 
-                variant="outline" 
-                className="border-crypto-green text-crypto-green hover:bg-crypto-green/10"
-                onClick={resetCreator}
-              >
-                Create Another Meme Coin
-              </Button>
-            </div>
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div className="mb-12">
-      <StepIndicator currentStep={currentStep} totalSteps={STEPS.length} />
-      
-      <Card className="border border-gray-800 bg-crypto-gray/30 backdrop-blur">
-        <CardHeader className="border-b border-gray-800">
-          <CardTitle>{STEPS[currentStep]}</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6">
-          {renderStepContent()}
-        </CardContent>
-        {currentStep !== STEPS.length - 1 && currentStep !== 9 && !isCreating && (
-          <CardFooter className="flex justify-between border-t border-gray-800 pt-4">
-            <Button 
-              variant="outline" 
-              onClick={prevStep}
-              disabled={currentStep === 1 || (currentStep === 2 && isAuthenticated)}
-            >
-              Back
-            </Button>
-            <Button 
-              onClick={nextStep}
-              disabled={(currentStep === 1 && !isAuthenticated) || currentStep === STEPS.length - 2}
-            >
-              Continue
-            </Button>
-          </CardFooter>
-        )}
-      </Card>
-    </div>
-  );
-};
-
-export default TokenCreator;
+            className="w-full

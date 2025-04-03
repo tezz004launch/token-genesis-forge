@@ -3,11 +3,12 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import TokenCreator from '@/components/TokenCreator';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Info } from 'lucide-react';
 import { useSession } from '@/contexts/SessionContext';
 import ConnectWalletPrompt from '@/components/ConnectWalletPrompt';
 import { useWallet } from '@solana/wallet-adapter-react';
 import TokenCreationInfo from '@/components/TokenCreationInfo';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const TokenCreationPage = () => {
   const navigate = useNavigate();
@@ -28,6 +29,13 @@ const TokenCreationPage = () => {
           </Button>
           <h1 className="text-3xl font-bold ml-4">Create Meme Coin</h1>
         </div>
+
+        <Alert className="bg-blue-900/20 border-blue-800/30 mb-6">
+          <Info className="h-4 w-4 text-blue-400" />
+          <AlertDescription>
+            If you experience network connectivity issues or balance update problems, use the "Change RPC" button in the payment step to connect to a different Solana endpoint.
+          </AlertDescription>
+        </Alert>
 
         <TokenCreationInfo />
 
