@@ -17,10 +17,13 @@ import ImageUpload from './ImageUpload';
 import ConnectionStatus from './token-creator/ConnectionStatus';
 import CreationProgress from './token-creator/CreationProgress';
 import AuthStep from './token-creator/AuthStep';
+import PaymentStep from './token-creator/PaymentStep';
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { useStepConfig } from '@/contexts/StepConfigContext';
 
 const TokenCreator: React.FC = () => {
   const { publicKey } = useWallet();
+  const { currentStep, visibleSteps } = useStepConfig();
   
   const {
     form,
@@ -58,6 +61,14 @@ const TokenCreator: React.FC = () => {
     currentRpcIndex
   });
 
+  // Ensure wallet balance is fetched when component mounts
+  React.useEffect(() => {
+    if (publicKey && currentStep >= 2) {
+      console.log("TokenCreator: Refreshing wallet balance on mount");
+      refreshWalletBalance(true);
+    }
+  }, [publicKey, refreshWalletBalance, currentStep]);
+
   React.useEffect(() => {
     if (readyToCreate && !isCreating) {
       handleCreateToken(hasSufficientBalance(walletBalance, feeBreakdown));
@@ -74,6 +85,8 @@ const TokenCreator: React.FC = () => {
       setReadyToCreate(true);
     }
   };
+
+  const isPaymentStep = currentStep === visibleSteps.length - 1;
 
   if (showAuthStep) {
     return <AuthStep connectionError={connectionError} />;
@@ -92,6 +105,27 @@ const TokenCreator: React.FC = () => {
             tokenDecimals={form.decimals}
             tokenSupply={form.supply}
             selectedNetwork={selectedNetwork}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  if (isPaymentStep) {
+    return (
+      <Card className="border border-gray-800 bg-crypto-gray/30 backdrop-blur-sm">
+        <CardContent className="pt-6">
+          <PaymentStep 
+            feeBreakdown={feeBreakdown}
+            walletBalance={walletBalance}
+            hasSufficientBalance={hasSufficientBalance(walletBalance, feeBreakdown)}
+            connectionState={connectionState}
+            isLoadingBalance={isLoadingBalance}
+            refreshWalletBalance={refreshWalletBalance}
+            switchRpcEndpoint={switchRpcEndpoint}
+            currentRpcIndex={currentRpcIndex}
+            selectedNetwork={selectedNetwork}
+            onNext={handleSubmitToken}
           />
         </CardContent>
       </Card>

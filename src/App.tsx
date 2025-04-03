@@ -36,7 +36,15 @@ const queryClient = new QueryClient();
 const App = () => {
   // Set up Solana network and wallet
   const network = WalletAdapterNetwork.Devnet;
+  
+  // Use custom connection configuration to improve reliability
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+  const connectionConfig = useMemo(() => ({
+    commitment: 'confirmed',
+    confirmTransactionInitialTimeout: 60000, // 60 seconds for transaction confirmations
+    disableRetryOnRateLimit: false,
+  }), []);
+  
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
@@ -48,7 +56,7 @@ const App = () => {
 
   return (
     <BrowserRouter>
-      <ConnectionProvider endpoint={endpoint}>
+      <ConnectionProvider endpoint={endpoint} config={connectionConfig}>
         <WalletProvider wallets={wallets} autoConnect={true}>
           <WalletModalProvider>
             <SessionProvider>

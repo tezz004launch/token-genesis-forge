@@ -16,6 +16,7 @@ const TokenCreationPage = () => {
   const { isAuthenticated } = useSession();
   const { connected, connecting, publicKey } = useWallet();
   const [connectionAttempted, setConnectionAttempted] = useState(false);
+  const [walletJustConnected, setWalletJustConnected] = useState(false);
 
   // Monitor wallet connection attempts
   useEffect(() => {
@@ -23,6 +24,22 @@ const TokenCreationPage = () => {
       setConnectionAttempted(true);
     }
   }, [connecting]);
+
+  // Track when wallet gets connected
+  useEffect(() => {
+    if (!walletJustConnected && connected && publicKey) {
+      console.log("Wallet newly connected:", publicKey.toString());
+      setWalletJustConnected(true);
+      
+      // Show a success toast on successful connection
+      toast({
+        title: "Wallet Connected",
+        description: `Connected to ${publicKey.toString().slice(0, 6)}...${publicKey.toString().slice(-4)}`,
+      });
+    } else if (!connected) {
+      setWalletJustConnected(false);
+    }
+  }, [connected, publicKey, walletJustConnected]);
 
   // Handle connection errors
   useEffect(() => {

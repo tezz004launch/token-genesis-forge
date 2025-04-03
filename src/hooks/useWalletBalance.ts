@@ -1,12 +1,13 @@
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { toast } from '@/hooks/use-toast';
 import {
   createReliableConnection,
   CONNECTION_TIMEOUT,
   CONNECTION_RETRY_DELAY,
-  MAX_RETRY_DELAY
+  MAX_RETRY_DELAY,
+  BALANCE_REFRESH_INTERVAL
 } from '@/lib/token/tokenCreatorUtils';
 
 interface UseWalletBalanceProps {
@@ -40,6 +41,8 @@ export const useWalletBalance = ({
   const [lastBalanceUpdateTime, setLastBalanceUpdateTime] = useState<number | null>(null);
   const [retryDelay, setRetryDelay] = useState(CONNECTION_RETRY_DELAY);
   const [connectionState, setConnectionState] = useState<'connected' | 'unstable' | 'failed'>('connected');
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitialFetch = useRef(true);
 
   const refreshWalletBalance = useCallback(async (force: boolean = false) => {
     if (!publicKey) return;
@@ -60,6 +63,8 @@ export const useWalletBalance = ({
       
       while (attemptCount < maxAttempts && !success) {
         try {
+          console.log(`Attempting to fetch balance, attempt ${attemptCount + 1}`);
+          
           const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => reject(new Error("Balance fetch timeout")), CONNECTION_TIMEOUT);
           });
@@ -123,6 +128,48 @@ export const useWalletBalance = ({
     }
   }, [publicKey, selectedNetwork, balanceRefreshAttempts, lastBalanceUpdateTime, 
       retryDelay, currentRpcIndex]);
+
+  // Setup auto-refresh interval when wallet is connected
+  useEffect(() => {
+    if (publicKey) {
+      // Initial fetch when wallet connects
+      if (isInitialFetch.current) {
+        console.log("Initial balance fetch for newly connected wallet");
+        refreshWalletBalance(true);
+        isInitialFetch.current = false;
+      }
+      
+      // Set up auto-refresh interval
+      if (refreshTimeoutRef.current) {
+        clearInterval(refreshTimeoutRef.current);
+      }
+      
+      refreshTimeoutRef.current = setInterval(() => {
+        console.log("Auto-refreshing wallet balance");
+        refreshWalletBalance();
+      }, BALANCE_REFRESH_INTERVAL);
+      
+      return () => {
+        if (refreshTimeoutRef.current) {
+          clearInterval(refreshTimeoutRef.current);
+          refreshTimeoutRef.current = null;
+        }
+      };
+    } else {
+      // Reset state when wallet disconnects
+      setWalletBalance(null);
+      isInitialFetch.current = true;
+    }
+  }, [publicKey, refreshWalletBalance]);
+
+  // Reset connection state when switching networks or RPC endpoints
+  useEffect(() => {
+    if (publicKey) {
+      setConnectionState('connected');
+      setBalanceRefreshAttempts(0);
+      refreshWalletBalance(true);
+    }
+  }, [selectedNetwork, currentRpcIndex, publicKey, refreshWalletBalance]);
 
   return {
     walletBalance,
