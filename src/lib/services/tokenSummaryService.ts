@@ -12,6 +12,7 @@ interface TokenSummary {
   mintAddress: string;
   txId: string;
   createdAt: string;
+  cluster?: string; // Add the cluster property
 }
 
 const TOKEN_SUMMARY_KEY = 'token_summary';

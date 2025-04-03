@@ -361,7 +361,7 @@ export const saveTokenCreationData = (
     mintAddress,
     txId,
     createdAt: new Date().toISOString(),
-    cluster // Add cluster to the saved data
+    cluster // Now this property is defined in TokenSummary
   });
 };
 
