@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +44,7 @@ const STEPS = [
   'Socials',
   'Permissions',
   'Image Upload',
+  'Network',
   'Review',
   'Payment',
   'Confirmation'
@@ -60,6 +60,7 @@ const TokenCreator: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [creationTxHash, setCreationTxHash] = useState<string | null>(null);
   const [tokenAddress, setTokenAddress] = useState<string | null>(null);
+  const [selectedNetwork, setSelectedNetwork] = useState<'devnet' | 'mainnet-beta'>('devnet');
 
   const [form, setForm] = useState<TokenForm>({
     name: '',
@@ -113,7 +114,6 @@ const TokenCreator: React.FC = () => {
   }, [publicKey, connection]);
 
   useEffect(() => {
-    // Calculate security level based on permissions
     const securityScore = [
       form.revokeMintAuthority,
       form.revokeFreezeAuthority,
@@ -240,6 +240,13 @@ const TokenCreator: React.FC = () => {
     setProgress(10);
     
     try {
+      const selectedConnection = new Connection(
+        selectedNetwork === 'mainnet-beta' 
+          ? 'https://api.mainnet-beta.solana.com' 
+          : 'https://api.devnet.solana.com',
+        'confirmed'
+      );
+      
       const result = await createSPLToken({
         form,
         wallet: { 
@@ -249,7 +256,8 @@ const TokenCreator: React.FC = () => {
           }
         },
         feePayer: "6DLm5CnfXZjgi2Sjxr9mdaaCwqE3Syr1F4M2kTLYmLJA",
-        connection
+        connection: selectedConnection,
+        cluster: selectedNetwork
       });
       
       setCreationTxHash(result.txId);
@@ -646,6 +654,75 @@ const TokenCreator: React.FC = () => {
         return (
           <div className="space-y-6">
             <div className="space-y-2">
+              <h3 className="text-lg font-medium">Network Selection</h3>
+              <p className="text-sm text-muted-foreground">
+                Choose the network where you want to create your token
+              </p>
+            </div>
+            
+            <div className="space-y-6">
+              <div 
+                className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                  selectedNetwork === 'devnet' 
+                    ? 'bg-purple-900/20 border-purple-500/50' 
+                    : 'bg-crypto-gray/30 border-gray-700 hover:border-gray-600'
+                }`}
+                onClick={() => setSelectedNetwork('devnet')}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-4 h-4 rounded-full ${
+                    selectedNetwork === 'devnet' ? 'bg-purple-500' : 'bg-gray-600'
+                  }`}></div>
+                  <h4 className="font-medium">Devnet</h4>
+                </div>
+                <p className="pl-7 mt-2 text-sm text-crypto-light">
+                  Solana's test network. Tokens created here have no real value.
+                  Perfect for testing and development.
+                </p>
+              </div>
+              
+              <div 
+                className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                  selectedNetwork === 'mainnet-beta' 
+                    ? 'bg-green-900/20 border-green-500/50' 
+                    : 'bg-crypto-gray/30 border-gray-700 hover:border-gray-600'
+                }`}
+                onClick={() => setSelectedNetwork('mainnet-beta')}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-4 h-4 rounded-full ${
+                    selectedNetwork === 'mainnet-beta' ? 'bg-green-500' : 'bg-gray-600'
+                  }`}></div>
+                  <h4 className="font-medium">Mainnet</h4>
+                </div>
+                <p className="pl-7 mt-2 text-sm text-crypto-light">
+                  Solana's production network. Tokens created here can have real value.
+                  Use this for actual token launches.
+                </p>
+              </div>
+            </div>
+            
+            {selectedNetwork === 'mainnet-beta' && (
+              <div className="bg-yellow-900/20 border border-yellow-500/30 p-4 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle size={18} className="text-yellow-500 mt-0.5" />
+                  <div className="space-y-1">
+                    <h4 className="font-medium">Important: Mainnet Transaction</h4>
+                    <p className="text-sm">
+                      You're about to create a token on Solana's mainnet. This will use 
+                      real SOL from your wallet and cannot be reversed.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case 8:
+        return (
+          <div className="space-y-6">
+            <div className="space-y-2">
               <h3 className="text-lg font-medium">Review Your Meme Coin</h3>
               <p className="text-sm text-muted-foreground">
                 Please verify all details before proceeding to payment
@@ -679,6 +756,23 @@ const TokenCreator: React.FC = () => {
               <div className="space-y-2">
                 <p className="text-sm font-medium text-muted-foreground">Decimals</p>
                 <p className="text-base">{form.decimals}</p>
+              </div>
+              
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Network</p>
+                <p className="text-base flex items-center gap-2">
+                  {selectedNetwork === 'mainnet-beta' ? (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                      <span>Mainnet</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                      <span>Devnet</span>
+                    </>
+                  )}
+                </p>
               </div>
               
               <div className="space-y-2">
@@ -764,7 +858,7 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 8:
+      case 9:
         return (
           <div className="space-y-6">
             <div className="space-y-2">
@@ -785,13 +879,18 @@ const TokenCreator: React.FC = () => {
             <div className="bg-crypto-gray/30 p-6 rounded-md">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm text-muted-foreground">Platform Fee</span>
-                <span className="font-medium">0.05 SOL <span className="text-sm text-green-400">(SALE)</span></span>
+                <span className="font-medium">
+                  {selectedNetwork === 'mainnet-beta' ? '0.1' : '0.05'} SOL 
+                  <span className="text-sm text-green-400"> (SALE)</span>
+                </span>
               </div>
               
               {walletBalance !== null && (
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-sm text-muted-foreground">Your Balance</span>
-                  <span className={`font-medium ${walletBalance < 0.05 ? 'text-red-500' : ''}`}>
+                  <span className={`font-medium ${
+                    walletBalance < (selectedNetwork === 'mainnet-beta' ? 0.1 : 0.05) ? 'text-red-500' : ''
+                  }`}>
                     {walletBalance.toFixed(4)} SOL
                   </span>
                 </div>
@@ -802,7 +901,7 @@ const TokenCreator: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="font-medium">Total</span>
                 <div className="flex items-center space-x-2">
-                  <span className="font-bold text-lg">0.05 SOL</span>
+                  <span className="font-bold text-lg">{selectedNetwork === 'mainnet-beta' ? '0.1' : '0.05'} SOL</span>
                   <Coins className="text-solana h-5 w-5" />
                 </div>
               </div>
@@ -812,7 +911,8 @@ const TokenCreator: React.FC = () => {
               <CreditCard className="text-solana h-5 w-5 mt-0.5" />
               <div className="space-y-1">
                 <p className="text-sm">
-                  This fee covers all costs associated with creating your meme coin on the Solana blockchain, including network fees.
+                  This fee covers all costs associated with creating your meme coin on the Solana 
+                  {selectedNetwork === 'mainnet-beta' ? ' mainnet' : ' devnet'}. 
                   Your wallet will be prompted to approve this transaction.
                 </p>
               </div>
@@ -822,7 +922,11 @@ const TokenCreator: React.FC = () => {
               <Button 
                 className="w-full bg-solana hover:bg-solana-dark transition-colors"
                 size="lg"
-                disabled={isCreating || (walletBalance !== null && walletBalance < 0.05)}
+                disabled={
+                  isCreating || 
+                  (walletBalance !== null && 
+                   walletBalance < (selectedNetwork === 'mainnet-beta' ? 0.1 : 0.05))
+                }
                 onClick={handleCreateToken}
               >
                 {isCreating ? (
@@ -834,9 +938,10 @@ const TokenCreator: React.FC = () => {
                   "Pay & Create Meme Coin"
                 )}
               </Button>
-              {walletBalance !== null && walletBalance < 0.05 && (
+              {walletBalance !== null && 
+               walletBalance < (selectedNetwork === 'mainnet-beta' ? 0.1 : 0.05) && (
                 <p className="text-red-500 text-sm text-center mt-2">
-                  Insufficient balance. You need at least 0.05 SOL.
+                  Insufficient balance. You need at least {selectedNetwork === 'mainnet-beta' ? '0.1' : '0.05'} SOL.
                 </p>
               )}
               {isCreating && (
@@ -851,7 +956,7 @@ const TokenCreator: React.FC = () => {
           </div>
         );
 
-      case 9:
+      case 10:
         return (
           <div className="text-center space-y-6 py-6">
             <div className="w-20 h-20 mx-auto rounded-full border-2 border-crypto-green/30 flex items-center justify-center bg-crypto-green/10">
@@ -876,9 +981,14 @@ const TokenCreator: React.FC = () => {
                 </div>
                 
                 <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Network</p>
+                  <p className="font-medium">{selectedNetwork === 'mainnet-beta' ? 'Mainnet' : 'Devnet'}</p>
+                </div>
+                
+                <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Token Address</p>
                   <a 
-                    href={`https://explorer.solana.com/address/${tokenAddress}?cluster=devnet`}
+                    href={`https://explorer.solana.com/address/${tokenAddress}?cluster=${selectedNetwork}`}
                     target="_blank"
                     rel="noopener noreferrer" 
                     className="text-sm font-mono text-solana hover:underline break-all"
@@ -890,7 +1000,7 @@ const TokenCreator: React.FC = () => {
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Transaction Hash</p>
                   <a 
-                    href={`https://explorer.solana.com/tx/${creationTxHash}?cluster=devnet`}
+                    href={`https://explorer.solana.com/tx/${creationTxHash}?cluster=${selectedNetwork}`}
                     target="_blank"
                     rel="noopener noreferrer" 
                     className="text-sm font-mono text-solana hover:underline break-all"

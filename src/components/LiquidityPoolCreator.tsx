@@ -1,13 +1,22 @@
 
 import React, { useState } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { Connection } from '@solana/web3.js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Droplets, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Loader2, Droplets, ExternalLink, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { createLiquidityPool, getRaydiumPoolUrl, LiquidityPoolParams } from '@/lib/services/raydiumService';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface LiquidityPoolCreatorProps {
   tokenMint: string;
@@ -16,12 +25,14 @@ interface LiquidityPoolCreatorProps {
 
 const LiquidityPoolCreator: React.FC<LiquidityPoolCreatorProps> = ({ tokenMint, tokenSymbol }) => {
   const { publicKey, signTransaction } = useWallet();
+  const { connection } = useConnection();
   const [tokenAmount, setTokenAmount] = useState<string>('0');
   const [solAmount, setSolAmount] = useState<string>('0');
   const [isCreating, setIsCreating] = useState(false);
   const [poolCreated, setPoolCreated] = useState(false);
   const [poolId, setPoolId] = useState<string | null>(null);
   const [txId, setTxId] = useState<string | null>(null);
+  const [network, setNetwork] = useState<'devnet' | 'mainnet-beta'>('devnet');
 
   const handleCreatePool = async () => {
     if (!publicKey || !signTransaction) {
@@ -37,8 +48,13 @@ const LiquidityPoolCreator: React.FC<LiquidityPoolCreatorProps> = ({ tokenMint, 
     setIsCreating(true);
 
     try {
-      // Connect to Solana devnet
-      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+      // Use the selected network
+      const selectedConnection = new Connection(
+        network === 'mainnet-beta' 
+          ? 'https://api.mainnet-beta.solana.com' 
+          : 'https://api.devnet.solana.com', 
+        'confirmed'
+      );
 
       const params: LiquidityPoolParams = {
         tokenMint,
@@ -47,7 +63,7 @@ const LiquidityPoolCreator: React.FC<LiquidityPoolCreatorProps> = ({ tokenMint, 
       };
 
       const result = await createLiquidityPool(
-        connection,
+        selectedConnection,
         { publicKey, signTransaction },
         params
       );
@@ -82,6 +98,44 @@ const LiquidityPoolCreator: React.FC<LiquidityPoolCreatorProps> = ({ tokenMint, 
       <CardContent>
         {!poolCreated ? (
           <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm text-crypto-light flex items-center gap-2">
+                Network
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-gray-500 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="w-[200px]">Select the network where you want to create the liquidity pool.
+                      This should match the network where your token was created.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </label>
+              <Select
+                value={network}
+                onValueChange={(value) => setNetwork(value as 'devnet' | 'mainnet-beta')}
+              >
+                <SelectTrigger className="bg-crypto-gray border-gray-700">
+                  <SelectValue placeholder="Select network" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="devnet">Devnet</SelectItem>
+                  <SelectItem value="mainnet-beta">Mainnet</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {network === 'mainnet-beta' && (
+              <Alert className="bg-yellow-900/20 border-yellow-500/30">
+                <AlertCircle className="h-4 w-4 text-yellow-500" />
+                <AlertDescription>
+                  You're about to create a pool on mainnet. This will cost real SOL.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="space-y-2">
               <label className="text-sm text-crypto-light">
                 {tokenSymbol} token amount:
@@ -124,11 +178,12 @@ const LiquidityPoolCreator: React.FC<LiquidityPoolCreatorProps> = ({ tokenMint, 
             <div className="text-sm space-y-2">
               <p><span className="text-gray-400">Pool ID:</span> {poolId}</p>
               <p><span className="text-gray-400">Transaction:</span> {txId?.substring(0, 8)}...{txId?.substring(txId.length - 8)}</p>
+              <p><span className="text-gray-400">Network:</span> {network === 'mainnet-beta' ? 'Mainnet' : 'Devnet'}</p>
             </div>
             
             <div className="flex flex-col gap-2">
               <a 
-                href={`https://explorer.solana.com/tx/${txId}?cluster=devnet`}
+                href={`https://explorer.solana.com/tx/${txId}?cluster=${network}`}
                 target="_blank"
                 rel="noopener noreferrer" 
                 className="text-blue-400 flex items-center gap-1 text-sm hover:text-blue-300"
@@ -136,7 +191,7 @@ const LiquidityPoolCreator: React.FC<LiquidityPoolCreatorProps> = ({ tokenMint, 
                 <ExternalLink size={14} /> View transaction on Solana Explorer
               </a>
               
-              {poolId && (
+              {poolId && network === 'mainnet-beta' && (
                 <a 
                   href={getRaydiumPoolUrl(poolId)}
                   target="_blank" 

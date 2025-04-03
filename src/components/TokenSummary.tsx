@@ -14,6 +14,7 @@ interface TokenSummaryProps {
   totalSupply: number;
   mintAddress: string;
   txId: string;
+  cluster?: string;
 }
 
 const TokenSummary: React.FC<TokenSummaryProps> = ({
@@ -22,7 +23,8 @@ const TokenSummary: React.FC<TokenSummaryProps> = ({
   decimals,
   totalSupply,
   mintAddress,
-  txId
+  txId,
+  cluster = 'devnet'
 }) => {
   const { toast } = useToast();
   
@@ -73,6 +75,13 @@ const TokenSummary: React.FC<TokenSummaryProps> = ({
             </div>
           </div>
           
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-400">Network</p>
+              <p className="font-medium">{cluster === 'mainnet-beta' ? 'Mainnet' : 'Devnet'}</p>
+            </div>
+          </div>
+          
           <Separator className="my-2 bg-gray-800" />
           
           <div>
@@ -104,7 +113,7 @@ const TokenSummary: React.FC<TokenSummaryProps> = ({
             </div>
             <p className="font-mono text-sm break-all">{txId}</p>
             <a
-              href={`https://explorer.solana.com/tx/${txId}?cluster=devnet`}
+              href={`https://explorer.solana.com/tx/${txId}?cluster=${cluster}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-blue-400 flex items-center gap-1 mt-1 hover:text-blue-300"
