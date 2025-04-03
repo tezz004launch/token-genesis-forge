@@ -1,17 +1,14 @@
 
-import React, { useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
 import { useTokenCreator } from '@/hooks/useTokenCreator';
 import { useWalletBalance } from '@/hooks/useWalletBalance';
-import { useStepConfig } from '@/contexts/StepConfigContext';
-import { hasSufficientBalance } from '@/lib/token/tokenCreatorUtils';
-import { RPC_ENDPOINTS } from '@/lib/token/tokenCreatorUtils';
+import { RPC_ENDPOINTS, hasSufficientBalance } from '@/lib/token/tokenCreatorUtils';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Coins, Info, RefreshCw, Loader2, Zap, Shield } from 'lucide-react';
@@ -20,6 +17,7 @@ import ImageUpload from './ImageUpload';
 import ConnectionStatus from './token-creator/ConnectionStatus';
 import CreationProgress from './token-creator/CreationProgress';
 import AuthStep from './token-creator/AuthStep';
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
 const TokenCreator: React.FC = () => {
   const { publicKey } = useWallet();
@@ -49,28 +47,18 @@ const TokenCreator: React.FC = () => {
     switchRpcEndpoint
   } = useTokenCreator();
 
-  const { 
-    visibleSteps, 
-    currentStep, 
-    setCurrentStep, 
-    totalVisibleSteps 
-  } = useStepConfig();
-
   const {
     walletBalance,
     isLoadingBalance,
     connectionState,
     refreshWalletBalance,
-    retryDelay,
-    balanceRefreshAttempts,
-    setConnectionState
   } = useWalletBalance({
     publicKey,
     selectedNetwork,
     currentRpcIndex
   });
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (readyToCreate && !isCreating) {
       handleCreateToken(hasSufficientBalance(walletBalance, feeBreakdown));
       setReadyToCreate(false);
@@ -94,10 +82,7 @@ const TokenCreator: React.FC = () => {
   if (isCreating) {
     return (
       <Card className="border border-gray-800 bg-crypto-gray/30 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle>Creating Your Meme Coin</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <CreationProgress 
             progress={progress}
             creationTxHash={creationTxHash}
@@ -115,88 +100,65 @@ const TokenCreator: React.FC = () => {
 
   return (
     <Card className="border border-gray-800 bg-crypto-gray/30 backdrop-blur-sm">
-      <CardHeader>
-        <CardTitle>Create Your Meme Coin</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Left Column - Basic Info */}
-          <div className="space-y-6 col-span-1 md:col-span-2">
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Basic Information</h3>
+      <CardContent className="pt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-7 gap-10">
+          {/* Left Column - Token Details */}
+          <div className="lg:col-span-4">
+            <div className="space-y-8">
+              {/* Token Name & Symbol */}
+              <div className="bg-gray-800/40 p-6 rounded-xl">
+                <h2 className="text-xl font-semibold mb-4">Token Info</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-sm font-medium">
+                      Token Name <span className="text-red-400">*</span>
+                    </Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      value={form.name}
+                      onChange={handleInputChange}
+                      placeholder="My Awesome Token"
+                      className={errors.name ? "border-red-500" : ""}
+                    />
+                    {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="symbol" className="text-sm font-medium">
+                      Symbol <span className="text-red-400">*</span>
+                    </Label>
+                    <Input
+                      id="symbol"
+                      name="symbol"
+                      value={form.symbol}
+                      onChange={handleInputChange}
+                      placeholder="TOKEN"
+                      className={errors.symbol ? "border-red-500" : ""}
+                    />
+                    {errors.symbol && <p className="text-xs text-red-500">{errors.symbol}</p>}
+                    <p className="text-xs text-muted-foreground">
+                      Max 8 characters (e.g. BTC, SHIB, DOGE)
+                    </p>
+                  </div>
+                </div>
+              </div>
               
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-sm font-medium">
-                    Token Name <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    value={form.name}
-                    onChange={handleInputChange}
-                    placeholder="My Awesome Token"
-                    className={errors.name ? "border-red-500" : ""}
-                  />
-                  {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="symbol" className="text-sm font-medium">
-                    Token Symbol <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="symbol"
-                    name="symbol"
-                    value={form.symbol}
-                    onChange={handleInputChange}
-                    placeholder="TOKEN"
-                    className={errors.symbol ? "border-red-500" : ""}
-                  />
-                  {errors.symbol && <p className="text-xs text-red-500">{errors.symbol}</p>}
-                  <p className="text-xs text-muted-foreground">
-                    Symbol must be 8 characters or less (e.g. BTC, SHIB, DOGE)
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="decimals" className="text-sm font-medium">
-                    Decimals
-                  </Label>
-                  <Input
-                    id="decimals"
-                    name="decimals"
-                    type="number"
-                    value={form.decimals}
-                    onChange={handleInputChange}
-                    min={0}
-                    max={9}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Typically 9 for most Solana tokens
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="supply" className="text-sm font-medium">
-                    Total Supply <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="supply"
-                    name="supply"
-                    type="number"
-                    value={form.supply}
-                    onChange={handleInputChange}
-                    placeholder="1000000000"
-                    className={errors.supply ? "border-red-500" : ""}
-                    min={1}
-                  />
-                  {errors.supply && <p className="text-xs text-red-500">{errors.supply}</p>}
-                </div>
-                
+              {/* Token Image */}
+              <div className="bg-gray-800/40 p-6 rounded-xl">
+                <h2 className="text-xl font-semibold mb-4">Token Image</h2>
+                <ImageUpload
+                  onImageUpload={handleImageUpload}
+                  currentImage={form.image}
+                />
+              </div>
+              
+              {/* Description */}
+              <div className="bg-gray-800/40 p-6 rounded-xl">
+                <h2 className="text-xl font-semibold mb-4">Description</h2>
                 <div className="space-y-2">
                   <Label htmlFor="description" className="text-sm font-medium">
-                    Description
+                    Token Description
                   </Label>
                   <Textarea
                     id="description"
@@ -205,129 +167,176 @@ const TokenCreator: React.FC = () => {
                     onChange={handleInputChange}
                     placeholder="Describe your token"
                     rows={3}
+                    className="resize-none"
                   />
                 </div>
               </div>
-            </div>
-            
-            <Separator className="my-4" />
-            
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Token Options</h3>
               
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="revokeMintAuthority" className="text-sm font-medium cursor-pointer">
-                      Revoke Mint Authority
+              {/* Parameters */}
+              <div className="bg-gray-800/40 p-6 rounded-xl">
+                <h2 className="text-xl font-semibold mb-4">Parameters</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="decimals" className="text-sm font-medium">
+                      Decimals
                     </Label>
+                    <Input
+                      id="decimals"
+                      name="decimals"
+                      type="number"
+                      value={form.decimals}
+                      onChange={handleInputChange}
+                      min={0}
+                      max={9}
+                    />
                     <p className="text-xs text-muted-foreground">
-                      Prevents creating more tokens in the future
+                      Typically 9 for most Solana tokens
                     </p>
                   </div>
-                  <Switch
-                    id="revokeMintAuthority"
-                    checked={form.revokeMintAuthority}
-                    onCheckedChange={(checked) => handleCheckboxChange(checked, 'revokeMintAuthority')}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="revokeFreezeAuthority" className="text-sm font-medium cursor-pointer">
-                      Revoke Freeze Authority
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="supply" className="text-sm font-medium">
+                      Total Supply <span className="text-red-400">*</span>
                     </Label>
-                    <p className="text-xs text-muted-foreground">
-                      Prevents freezing user tokens in the future
-                    </p>
+                    <Input
+                      id="supply"
+                      name="supply"
+                      type="number"
+                      value={form.supply}
+                      onChange={handleInputChange}
+                      placeholder="1000000000"
+                      className={errors.supply ? "border-red-500" : ""}
+                      min={1}
+                    />
+                    {errors.supply && <p className="text-xs text-red-500">{errors.supply}</p>}
                   </div>
-                  <Switch
-                    id="revokeFreezeAuthority"
-                    checked={form.revokeFreezeAuthority}
-                    onCheckedChange={(checked) => handleCheckboxChange(checked, 'revokeFreezeAuthority')}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="immutableMetadata" className="text-sm font-medium cursor-pointer">
-                      Immutable Metadata
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      Makes token metadata permanently unchangeable
-                    </p>
-                  </div>
-                  <Switch
-                    id="immutableMetadata"
-                    checked={form.immutableMetadata}
-                    onCheckedChange={(checked) => handleCheckboxChange(checked, 'immutableMetadata')}
-                  />
                 </div>
               </div>
-            </div>
-            
-            <Separator className="my-4" />
-            
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Token Logo</h3>
-              <ImageUpload
-                onImageUpload={handleImageUpload}
-                currentImage={form.image}
-              />
-            </div>
-            
-            <Separator className="my-4" />
-            
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Social Links</h3>
               
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="website" className="text-sm font-medium">
-                    Website
-                  </Label>
-                  <Input
-                    id="website"
-                    name="website"
-                    value={form.website || ''}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com"
-                  />
+              {/* Social Links */}
+              <div className="bg-gray-800/40 p-6 rounded-xl">
+                <h2 className="text-xl font-semibold mb-4">Social Links</h2>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="website" className="text-sm font-medium">
+                      Website
+                    </Label>
+                    <Input
+                      id="website"
+                      name="website"
+                      value={form.website || ''}
+                      onChange={handleInputChange}
+                      placeholder="https://example.com"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="twitter" className="text-sm font-medium">
+                      Twitter
+                    </Label>
+                    <Input
+                      id="twitter"
+                      name="twitter"
+                      value={form.twitter || ''}
+                      onChange={handleInputChange}
+                      placeholder="@example"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="telegram" className="text-sm font-medium">
+                      Telegram
+                    </Label>
+                    <Input
+                      id="telegram"
+                      name="telegram"
+                      value={form.telegram || ''}
+                      onChange={handleInputChange}
+                      placeholder="example"
+                    />
+                  </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="twitter" className="text-sm font-medium">
-                    Twitter
-                  </Label>
-                  <Input
-                    id="twitter"
-                    name="twitter"
-                    value={form.twitter || ''}
-                    onChange={handleInputChange}
-                    placeholder="@example"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="telegram" className="text-sm font-medium">
-                    Telegram
-                  </Label>
-                  <Input
-                    id="telegram"
-                    name="telegram"
-                    value={form.telegram || ''}
-                    onChange={handleInputChange}
-                    placeholder="example"
-                  />
+              </div>
+              
+              {/* Authorities */}
+              <div className="bg-gray-800/40 p-6 rounded-xl">
+                <h2 className="text-xl font-semibold mb-4">Authorities</h2>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="revokeMintAuthority" className="text-sm font-medium cursor-pointer">
+                        Revoke Mint Authority
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Prevents creating more tokens in the future
+                      </p>
+                    </div>
+                    <Switch
+                      id="revokeMintAuthority"
+                      checked={form.revokeMintAuthority}
+                      onCheckedChange={(checked) => handleCheckboxChange(checked, 'revokeMintAuthority')}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="revokeFreezeAuthority" className="text-sm font-medium cursor-pointer">
+                        Revoke Freeze Authority
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Prevents freezing user tokens in the future
+                      </p>
+                    </div>
+                    <Switch
+                      id="revokeFreezeAuthority"
+                      checked={form.revokeFreezeAuthority}
+                      onCheckedChange={(checked) => handleCheckboxChange(checked, 'revokeFreezeAuthority')}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="immutableMetadata" className="text-sm font-medium cursor-pointer">
+                        Immutable Metadata
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Makes token metadata permanently unchangeable
+                      </p>
+                    </div>
+                    <Switch
+                      id="immutableMetadata"
+                      checked={form.immutableMetadata}
+                      onCheckedChange={(checked) => handleCheckboxChange(checked, 'immutableMetadata')}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
           
-          {/* Right Column - Payment & Creation */}
-          <div className="space-y-6">
-            <div className="bg-crypto-gray/30 p-4 rounded-md">
-              <h3 className="text-lg font-medium mb-4">Network & Payment</h3>
+          {/* Right Column - Payment & Network */}
+          <div className="lg:col-span-3">
+            <div className="bg-gray-800/40 p-6 rounded-xl sticky top-24">
+              <h2 className="text-xl font-semibold mb-4">Network & Payment</h2>
+              
+              {/* Network Selection */}
+              <div className="mb-6">
+                <Label className="text-sm font-medium block mb-3">Network</Label>
+                <RadioGroup 
+                  value={selectedNetwork} 
+                  onValueChange={(value) => setSelectedNetwork(value as 'devnet' | 'mainnet-beta')}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="devnet" id="devnet" />
+                    <Label htmlFor="devnet" className="cursor-pointer">Devnet</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="mainnet-beta" id="mainnet" />
+                    <Label htmlFor="mainnet" className="cursor-pointer">Mainnet</Label>
+                  </div>
+                </RadioGroup>
+              </div>
               
               <ConnectionStatus 
                 connectionState={connectionState}
@@ -371,6 +380,7 @@ const TokenCreator: React.FC = () => {
                 </AlertDescription>
               </Alert>
               
+              {/* Fee breakdown */}
               <div className="space-y-2 mt-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Mint Account Rent</span>
@@ -395,8 +405,9 @@ const TokenCreator: React.FC = () => {
                 </div>
               </div>
               
+              {/* Create Token Button */}
               <Button 
-                className="w-full mt-6 bg-solana hover:bg-solana-dark"
+                className="w-full mt-6 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white h-14 text-lg font-medium"
                 onClick={handleSubmitToken}
                 disabled={!hasSufficientBalance(walletBalance, feeBreakdown)}
               >
@@ -404,7 +415,7 @@ const TokenCreator: React.FC = () => {
                   "Insufficient Balance"
                 ) : (
                   <>
-                    <Coins className="mr-2 h-4 w-4" />
+                    <Coins className="mr-2 h-5 w-5" />
                     Create Token
                   </>
                 )}
