@@ -33,7 +33,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Progress } from '@/components/ui/progress';
-import { Connection, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Connection, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { useSession } from '@/contexts/SessionContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import AuthWallet from './AuthWallet';
@@ -42,6 +42,7 @@ import TokenSummary from './TokenSummary';
 const PLATFORM_FEE = 0.05;
 const FEE_RECIPIENT = "FMZJ2zuacqYiyE8E9ysQxALBkcTvCohUCTpLGrCSCnUH";
 const BALANCE_BUFFER = 0.001;
+const BALANCE_REFRESH_INTERVAL = 5000; // 5 seconds
 
 const STEPS = [
   'Connect Wallet',
@@ -57,6 +58,20 @@ const STEPS = [
   'Confirmation'
 ];
 
+// List of multiple RPC endpoints to try if one fails
+const RPC_ENDPOINTS = {
+  'devnet': [
+    'https://api.devnet.solana.com',
+    'https://solana-devnet-rpc.allthatnode.com',
+    'https://devnet.helius-rpc.com/?api-key=15319106-5848-42fd-83c2-b9bdfe17f12c'
+  ],
+  'mainnet-beta': [
+    'https://api.mainnet-beta.solana.com',
+    'https://solana-mainnet.g.alchemy.com/v2/demo',
+    'https://rpc.ankr.com/solana'
+  ]
+};
+
 const TokenCreator: React.FC = () => {
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
@@ -70,6 +85,8 @@ const TokenCreator: React.FC = () => {
   const [selectedNetwork, setSelectedNetwork] = useState<'devnet' | 'mainnet-beta'>('devnet');
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [feeBreakdown, setFeeBreakdown] = useState<FeeBreakdown | null>(null);
+  const [balanceRefreshAttempts, setBalanceRefreshAttempts] = useState(0);
+  const [lastBalanceUpdateTime, setLastBalanceUpdateTime] = useState<number | null>(null);
 
   const [form, setForm] = useState<TokenForm>({
     name: '',
@@ -125,28 +142,99 @@ const TokenCreator: React.FC = () => {
     loadFees();
   }, [connection, selectedNetwork]);
 
-  const refreshWalletBalance = async () => {
-    if (publicKey && connection) {
-      try {
-        setIsLoadingBalance(true);
-        const balance = await connection.getBalance(publicKey);
-        setWalletBalance(balance / LAMPORTS_PER_SOL);
-        console.log(`Refreshed wallet balance: ${balance / LAMPORTS_PER_SOL} SOL`);
-      } catch (error) {
-        console.error("Error fetching balance:", error);
-      } finally {
-        setIsLoadingBalance(false);
-      }
-    }
-  };
+  // Function to create a connection with fallback to multiple RPC endpoints
+  const createReliableConnection = useCallback((network: 'devnet' | 'mainnet-beta'): Connection => {
+    const endpoints = RPC_ENDPOINTS[network];
+    // Try the first endpoint
+    return new Connection(endpoints[0], 'confirmed');
+  }, []);
 
+  const refreshWalletBalance = useCallback(async (force: boolean = false) => {
+    if (!publicKey) return;
+    
+    // If not forced, check if we've refreshed recently (within last 3 seconds)
+    if (!force && lastBalanceUpdateTime && Date.now() - lastBalanceUpdateTime < 3000) {
+      return;
+    }
+
+    try {
+      setIsLoadingBalance(true);
+      
+      // Use reliable connection creation
+      const reliableConnection = createReliableConnection(selectedNetwork);
+      
+      let retries = 0;
+      let success = false;
+      let balance = 0;
+      
+      // Try up to 3 times with different endpoints
+      while (retries < 3 && !success) {
+        try {
+          balance = await reliableConnection.getBalance(publicKey);
+          success = true;
+        } catch (error) {
+          console.warn(`Balance fetch attempt ${retries + 1} failed, trying next endpoint...`);
+          retries++;
+          
+          if (retries < 3) {
+            // Try a different endpoint
+            const nextEndpoint = RPC_ENDPOINTS[selectedNetwork][retries % RPC_ENDPOINTS[selectedNetwork].length];
+            reliableConnection['_rpcEndpoint'] = nextEndpoint;
+            await new Promise(r => setTimeout(r, 300)); // Small delay before retry
+          }
+        }
+      }
+      
+      if (success) {
+        setBalanceRefreshAttempts(0); // Reset attempts counter on success
+        setWalletBalance(balance / LAMPORTS_PER_SOL);
+        setLastBalanceUpdateTime(Date.now());
+        console.log(`Refreshed wallet balance: ${balance / LAMPORTS_PER_SOL} SOL`);
+      } else {
+        // If all attempts failed, increment the counter
+        setBalanceRefreshAttempts(prev => prev + 1);
+        
+        // After 3 failed refresh attempts, show an error toast
+        if (balanceRefreshAttempts >= 3) {
+          toast({
+            title: "Balance Update Failed",
+            description: "We're having trouble connecting to the Solana network. Please try again later.",
+            variant: "destructive"
+          });
+          setBalanceRefreshAttempts(0); // Reset after showing error
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+      toast({
+        title: "Balance Update Failed",
+        description: "Could not fetch your wallet balance. Please refresh manually.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingBalance(false);
+    }
+  }, [publicKey, connection, selectedNetwork, balanceRefreshAttempts, lastBalanceUpdateTime, toast, createReliableConnection]);
+
+  // Effect for initial balance fetch and periodic refreshes
   useEffect(() => {
-    refreshWalletBalance();
-    
-    const intervalId = setInterval(refreshWalletBalance, 10000); // every 10 seconds
-    
-    return () => clearInterval(intervalId);
-  }, [publicKey, connection]);
+    if (publicKey) {
+      refreshWalletBalance(true);
+      
+      const intervalId = setInterval(() => {
+        refreshWalletBalance();
+      }, BALANCE_REFRESH_INTERVAL);
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [publicKey, refreshWalletBalance, selectedNetwork]);
+
+  // Extra effect to refresh balance when network is changed
+  useEffect(() => {
+    if (publicKey) {
+      refreshWalletBalance(true);
+    }
+  }, [selectedNetwork, publicKey, refreshWalletBalance]);
 
   useEffect(() => {
     const securityScore = [
@@ -272,7 +360,7 @@ const TokenCreator: React.FC = () => {
     setCurrentStep(2);
   };
 
-  const hasSufficientBalance = () => {
+  const hasSufficientBalance = useCallback(() => {
     if (walletBalance === null || feeBreakdown === null) return false;
     
     const requiredBalance = feeBreakdown.total / LAMPORTS_PER_SOL + BALANCE_BUFFER;
@@ -281,7 +369,7 @@ const TokenCreator: React.FC = () => {
     console.log(`Balance check: ${walletBalance} SOL available, ${requiredBalance} SOL required (including ${BALANCE_BUFFER} SOL buffer)`);
     
     return hasEnough;
-  };
+  }, [walletBalance, feeBreakdown]);
 
   const handleCreateToken = async () => {
     if (!publicKey) {
@@ -302,13 +390,14 @@ const TokenCreator: React.FC = () => {
       return;
     }
 
-    await refreshWalletBalance();
+    // Force refresh of wallet balance before proceeding
+    await refreshWalletBalance(true);
 
     if (!hasSufficientBalance()) {
       const totalRequired = feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(4) : PLATFORM_FEE;
       toast({
         title: "Insufficient Balance",
-        description: `You need at least ${totalRequired} SOL in your wallet. Current balance: ${walletBalance?.toFixed(4)} SOL`,
+        description: `You need at least ${totalRequired} SOL in your wallet. Current balance: ${walletBalance?.toFixed(4) || '0.0000'} SOL`,
         variant: "destructive"
       });
       return;
@@ -323,12 +412,7 @@ const TokenCreator: React.FC = () => {
         description: "Please approve the transaction in your wallet",
       });
       
-      const selectedConnection = new Connection(
-        selectedNetwork === 'mainnet-beta' 
-          ? 'https://api.mainnet-beta.solana.com' 
-          : 'https://api.devnet.solana.com',
-        'confirmed'
-      );
+      const selectedConnection = createReliableConnection(selectedNetwork);
       
       const result = await createSPLToken({
         form,
@@ -347,6 +431,9 @@ const TokenCreator: React.FC = () => {
       setTokenAddress(result.tokenAddress);
       setProgress(100);
       
+      // Refresh balance after successful creation
+      setTimeout(() => refreshWalletBalance(true), 2000);
+      
       toast({
         title: "Token Created Successfully!",
         description: "Your meme coin has been created and sent to your wallet.",
@@ -363,6 +450,9 @@ const TokenCreator: React.FC = () => {
       setProgress(0);
       setIsCreating(false);
       setReadyToCreate(false);
+      
+      // Refresh balance after failed creation attempt
+      setTimeout(() => refreshWalletBalance(true), 2000);
     }
   };
 
@@ -445,42 +535,48 @@ const TokenCreator: React.FC = () => {
             <div className="flex justify-between">
               <div className="flex items-start gap-2">
                 <span className="text-xs text-muted-foreground">Rent for Mint Account:</span>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Info className="h-3 w-3 text-muted-foreground" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p className="text-xs">Cost to store your token's core information (supply, decimals, etc.) on-chain</p>
-                  </TooltipContent>
-                </Tooltip>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-3 w-3 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="text-xs">Cost to store your token's core information (supply, decimals, etc.) on-chain</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               <span>{feeBreakdown ? (feeBreakdown.mintAccountRent / LAMPORTS_PER_SOL).toFixed(5) : "0.00200"} SOL</span>
             </div>
             <div className="flex justify-between">
               <div className="flex items-start gap-2">
                 <span className="text-xs text-muted-foreground">Rent for Token Account:</span>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Info className="h-3 w-3 text-muted-foreground" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p className="text-xs">Cost to store your token balance information on-chain</p>
-                  </TooltipContent>
-                </Tooltip>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-3 w-3 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="text-xs">Cost to store your token balance information on-chain</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               <span>{feeBreakdown ? (feeBreakdown.tokenAccountRent / LAMPORTS_PER_SOL).toFixed(5) : "0.00200"} SOL</span>
             </div>
             <div className="flex justify-between">
               <div className="flex items-start gap-2">
                 <span className="text-xs text-muted-foreground">Network Transaction Fee:</span>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Info className="h-3 w-3 text-muted-foreground" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p className="text-xs">Fee paid to Solana validators for processing your transaction</p>
-                  </TooltipContent>
-                </Tooltip>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-3 w-3 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="text-xs">Fee paid to Solana validators for processing your transaction</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               <span>{feeBreakdown ? (feeBreakdown.transactionFee / LAMPORTS_PER_SOL).toFixed(5) : "0.00025"} SOL</span>
             </div>
@@ -488,14 +584,16 @@ const TokenCreator: React.FC = () => {
             <div className="flex justify-between font-medium">
               <div className="flex items-start gap-2">
                 <span className="text-muted-foreground">Platform Fee:</span>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Info className="h-3 w-3 text-muted-foreground" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p className="text-xs">Fee for using our token creation service</p>
-                  </TooltipContent>
-                </Tooltip>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-3 w-3 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="text-xs">Fee for using our token creation service</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               <span>{PLATFORM_FEE} SOL</span>
             </div>
@@ -516,18 +614,24 @@ const TokenCreator: React.FC = () => {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                onClick={refreshWalletBalance}
-                className="h-5 w-5"
+                onClick={() => refreshWalletBalance(true)}
+                className="h-5 w-5 transition-all hover:bg-gray-700/50"
                 disabled={isLoadingBalance}
               >
                 <RefreshCw className={`h-3 w-3 ${isLoadingBalance ? 'animate-spin' : ''}`} />
+                <span className="sr-only">Refresh balance</span>
               </Button>
             </div>
-            <span className={`font-medium ${
-              hasSufficientBalance() ? 'text-green-400' : 'text-red-500'
-            }`}>
-              {walletBalance !== null ? walletBalance.toFixed(4) : "0.0000"} SOL
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`font-medium ${
+                hasSufficientBalance() ? 'text-green-400' : 'text-red-500'
+              }`}>
+                {walletBalance !== null ? walletBalance.toFixed(4) : "0.0000"} SOL
+              </span>
+              {isLoadingBalance && (
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+              )}
+            </div>
           </div>
           
           <div className="border-t border-gray-700 my-3" />
@@ -570,10 +674,39 @@ const TokenCreator: React.FC = () => {
               "Next"
             )}
           </Button>
+          
           {!hasSufficientBalance() && walletBalance !== null && (
-            <p className="text-red-500 text-sm text-center mt-2">
-              Insufficient balance. You need at least {feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(4) : PLATFORM_FEE} SOL.
-            </p>
+            <div className="text-red-500 text-sm text-center mt-2 space-y-1">
+              <p>
+                Insufficient balance. You need at least {feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(4) : PLATFORM_FEE} SOL.
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => refreshWalletBalance(true)}
+                className="mt-1 text-xs border-red-500/30 hover:bg-red-500/10"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Refresh Balance
+              </Button>
+            </div>
+          )}
+          {walletBalance === null && (
+            <div className="text-amber-500 text-sm text-center mt-2 flex flex-col items-center space-y-1">
+              <p className="flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Unable to fetch wallet balance
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => refreshWalletBalance(true)}
+                className="mt-1 text-xs border-amber-500/30 hover:bg-amber-500/10"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Refresh Balance
+              </Button>
+            </div>
           )}
           {isCreating && (
             <div className="mt-4">
