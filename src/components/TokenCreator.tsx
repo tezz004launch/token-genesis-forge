@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -60,18 +59,38 @@ const TokenCreator: React.FC = () => {
     selectedNetwork,
     currentRpcIndex
   });
+  
+  const [initialBalanceFetched, setInitialBalanceFetched] = useState(false);
+  const [lastBalanceUpdateTime, setLastBalanceUpdateTime] = useState<number | null>(null);
 
-  // Ensure wallet balance is fetched when component mounts
-  React.useEffect(() => {
-    if (publicKey && currentStep >= 2) {
-      console.log("TokenCreator: Refreshing wallet balance on mount");
-      refreshWalletBalance(true);
+  // Ensure wallet balance is fetched immediately when component mounts or wallet connects
+  useEffect(() => {
+    if (publicKey && !initialBalanceFetched) {
+      console.log(`[TokenCreator] Initial balance fetch for wallet: ${publicKey.toString()}`);
+      
+      // Added a small delay to ensure all connections are properly established
+      const timer = setTimeout(() => {
+        refreshWalletBalance(true);
+        setInitialBalanceFetched(true);
+      }, 300);
+      
+      return () => clearTimeout(timer);
     }
-  }, [publicKey, refreshWalletBalance, currentStep]);
+  }, [publicKey, refreshWalletBalance, initialBalanceFetched]);
 
-  React.useEffect(() => {
+  // Reset initialBalanceFetched when wallet disconnects
+  useEffect(() => {
+    if (!publicKey) {
+      setInitialBalanceFetched(false);
+    }
+  }, [publicKey]);
+
+  // Process token creation when ready
+  useEffect(() => {
     if (readyToCreate && !isCreating) {
-      handleCreateToken(hasSufficientBalance(walletBalance, feeBreakdown));
+      const hasSufficientFunds = hasSufficientBalance(walletBalance, feeBreakdown);
+      console.log(`[TokenCreator] Processing token creation. Has sufficient funds: ${hasSufficientFunds}`);
+      handleCreateToken(hasSufficientFunds);
       setReadyToCreate(false);
     }
   }, [readyToCreate, isCreating, handleCreateToken, walletBalance, feeBreakdown, setReadyToCreate]);
@@ -81,12 +100,30 @@ const TokenCreator: React.FC = () => {
       return;
     }
     
-    if (hasSufficientBalance(walletBalance, feeBreakdown)) {
-      setReadyToCreate(true);
+    // Check if we need to refresh balance before proceeding
+    const hasBalance = walletBalance !== null;
+    const balanceAge = hasBalance ? Date.now() - (lastBalanceUpdateTime || 0) : Infinity;
+    const balanceStale = balanceAge > 10000; // 10 seconds
+    
+    if (!hasBalance || balanceStale) {
+      console.log(`[TokenCreator] Refreshing balance before token creation`);
+      refreshWalletBalance(true);
+      setTimeout(() => {
+        if (hasSufficientBalance(walletBalance, feeBreakdown)) {
+          setReadyToCreate(true);
+        }
+      }, 1000); // Wait a bit for balance to refresh
+    } else {
+      if (hasSufficientBalance(walletBalance, feeBreakdown)) {
+        setReadyToCreate(true);
+      }
     }
   };
 
   const isPaymentStep = currentStep === visibleSteps.length - 1;
+
+  // Show wallet connection states for debugging
+  console.log(`[TokenCreator] Wallet connected: ${!!publicKey}, balance: ${walletBalance}, connection state: ${connectionState}`);
 
   if (showAuthStep) {
     return <AuthStep connectionError={connectionError} />;

@@ -12,13 +12,15 @@ export const BALANCE_REFRESH_INTERVAL = 5000; // 5 seconds
 export const CONNECTION_RETRY_DELAY = 1000; // 1 second initial retry delay
 export const MAX_RETRY_DELAY = 8000; // Max retry delay of 8 seconds
 export const CONNECTION_TIMEOUT = 30000; // Increased timeout for connections to 30 seconds
+export const RPC_QUALITY_SCORE = 8; // Number of attempts an RPC gets before we try another
 
+// Updated RPC endpoints with improved reliability endpoints first
 export const RPC_ENDPOINTS = {
   'devnet': [
     'https://api.devnet.solana.com',
-    'https://solana-devnet-rpc.allthatnode.com',
     'https://devnet.helius-rpc.com/?api-key=15319106-5848-42fd-83c2-b9bdfe17f12c',
     'https://rpc-devnet.helius.xyz/?api-key=15319106-5848-42fd-83c2-b9bdfe17f12c',
+    'https://solana-devnet-rpc.allthatnode.com',
     'https://mango.devnet.rpcpool.com',
     'https://devnet.genesysgo.net',
     'https://api.devnet.rpcpool.com',
@@ -26,10 +28,10 @@ export const RPC_ENDPOINTS = {
   ],
   'mainnet-beta': [
     'https://api.mainnet-beta.solana.com',
+    'https://rpc-mainnet.helius.xyz/?api-key=15319106-5848-42fd-83c2-b9bdfe17f12c',
+    'https://mainnet.helius-rpc.com/?api-key=15319106-5848-42fd-83c2-b9bdfe17f12c',
     'https://solana-mainnet.g.alchemy.com/v2/demo',
     'https://rpc.ankr.com/solana',
-    'https://mainnet.helius-rpc.com/?api-key=15319106-5848-42fd-83c2-b9bdfe17f12c',
-    'https://rpc-mainnet.helius.xyz/?api-key=15319106-5848-42fd-83c2-b9bdfe17f12c',
     'https://solana-api.projectserum.com',
     'https://solana.public-rpc.com',
     'https://api.mainnet.rpcpool.com'
@@ -111,12 +113,18 @@ export const createReliableConnection = (
   const endpoints = RPC_ENDPOINTS[network];
   const endpoint = endpoints[rpcIndex % endpoints.length];
   
-  console.log(`Creating connection to: ${endpoint}`);
+  console.log(`[tokenCreatorUtils] Creating connection to: ${endpoint}`);
   
+  // Enhanced connection configuration with better timeout and retry settings
   return new Connection(endpoint, {
     commitment: 'confirmed',
     confirmTransactionInitialTimeout: CONNECTION_TIMEOUT,
-    disableRetryOnRateLimit: false
+    disableRetryOnRateLimit: false,
+    wsEndpoint: undefined, // No WebSocket for balance checks (more reliable)
+    httpHeaders: {
+      // Add user agent to help identify our app on the RPC
+      'User-Agent': 'SolanaTokenCreator/1.0'
+    }
   });
 };
 

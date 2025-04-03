@@ -17,18 +17,20 @@ const TokenCreationPage = () => {
   const { connected, connecting, publicKey } = useWallet();
   const [connectionAttempted, setConnectionAttempted] = useState(false);
   const [walletJustConnected, setWalletJustConnected] = useState(false);
+  const [pageLoadTime] = useState(Date.now());
 
   // Monitor wallet connection attempts
   useEffect(() => {
     if (connecting) {
       setConnectionAttempted(true);
+      console.log("[TokenCreationPage] Wallet connecting attempt detected");
     }
   }, [connecting]);
 
   // Track when wallet gets connected
   useEffect(() => {
     if (!walletJustConnected && connected && publicKey) {
-      console.log("Wallet newly connected:", publicKey.toString());
+      console.log("[TokenCreationPage] Wallet newly connected:", publicKey.toString());
       setWalletJustConnected(true);
       
       // Show a success toast on successful connection
@@ -44,6 +46,7 @@ const TokenCreationPage = () => {
   // Handle connection errors
   useEffect(() => {
     if (connectionAttempted && !connected && !connecting) {
+      console.log("[TokenCreationPage] Wallet connection attempt failed");
       toast({
         title: "Wallet Connection Issue",
         description: "There was a problem connecting to your wallet. Please try again.",
@@ -52,6 +55,12 @@ const TokenCreationPage = () => {
       setConnectionAttempted(false);
     }
   }, [connectionAttempted, connected, connecting]);
+
+  // Debug log page load time and wallet status
+  useEffect(() => {
+    console.log(`[TokenCreationPage] Page loaded at ${new Date(pageLoadTime).toISOString()}`);
+    console.log(`[TokenCreationPage] Initial wallet status - connected: ${connected}, publicKey: ${publicKey?.toString() || 'none'}`);
+  }, [pageLoadTime, connected, publicKey]);
 
   return (
     <div className="min-h-screen bg-crypto-dark text-white">
