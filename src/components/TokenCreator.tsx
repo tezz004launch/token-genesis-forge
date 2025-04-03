@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,7 +40,7 @@ import AuthWallet from './AuthWallet';
 import TokenSummary from './TokenSummary';
 
 const PLATFORM_FEE = 0.05;
-const FEE_RECIPIENT = "6DLm5CnfXZjgi2Sjxr9mdaaCwqE3Syr1F4M2kTLYmLJA";
+const FEE_RECIPIENT = "FMZJ2zuacqYiyE8E9ysQxALBkcTvCohUCTpLGrCSCnUH";
 const BALANCE_BUFFER = 0.001;
 
 const STEPS = [
