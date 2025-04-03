@@ -63,7 +63,6 @@ const STEPS = [
   'Confirmation'
 ];
 
-// Expanded list of RPC endpoints with more reliable options
 const RPC_ENDPOINTS = {
   'devnet': [
     'https://api.devnet.solana.com',
@@ -138,7 +137,6 @@ const TokenCreator: React.FC = () => {
     const loadFees = async () => {
       if (connection) {
         try {
-          // Use our improved connection creation function
           const selectedConnection = createReliableConnection(selectedNetwork);
           const fees = await calculateTokenCreationFees(selectedConnection);
           setFeeBreakdown(fees);
@@ -156,14 +154,11 @@ const TokenCreator: React.FC = () => {
     loadFees();
   }, [connection, selectedNetwork, toast]);
 
-  // Function to create a connection with improved reliability
   const createReliableConnection = useCallback((network: 'devnet' | 'mainnet-beta', rpcIndexOverride?: number): Connection => {
-    // Use provided index or current index
     const rpcIndex = rpcIndexOverride !== undefined ? rpcIndexOverride : currentRpcIndex;
     const endpoints = RPC_ENDPOINTS[network];
     const endpoint = endpoints[rpcIndex % endpoints.length];
     
-    // Create connection with commitment and timeouts
     return new Connection(endpoint, {
       commitment: 'confirmed',
       confirmTransactionInitialTimeout: CONNECTION_TIMEOUT,
@@ -171,13 +166,9 @@ const TokenCreator: React.FC = () => {
     });
   }, [currentRpcIndex]);
 
-  // Function to cycle through RPC endpoints
   const switchRpcEndpoint = useCallback(() => {
-    // Set next RPC index
     setCurrentRpcIndex(prev => (prev + 1) % RPC_ENDPOINTS[selectedNetwork].length);
-    // Reset connection state
     setConnectionState('connected');
-    // Reset retry delay
     setRetryDelay(CONNECTION_RETRY_DELAY);
     
     toast({
@@ -185,14 +176,12 @@ const TokenCreator: React.FC = () => {
       description: "Trying a different Solana network connection...",
     });
     
-    // Force a balance refresh with the new endpoint
     setTimeout(() => refreshWalletBalance(true), 500);
   }, [selectedNetwork, toast]);
 
   const refreshWalletBalance = useCallback(async (force: boolean = false) => {
     if (!publicKey) return;
     
-    // If not forced, check if we've refreshed recently (within last 3 seconds)
     if (!force && lastBalanceUpdateTime && Date.now() - lastBalanceUpdateTime < 3000) {
       return;
     }
@@ -200,22 +189,19 @@ const TokenCreator: React.FC = () => {
     try {
       setIsLoadingBalance(true);
       
-      // Use current RPC index to create connection
       const reliableConnection = createReliableConnection(selectedNetwork);
       
       let success = false;
       let balance = 0;
       let attemptCount = 0;
-      const maxAttempts = 2; // Maximum attempts per RPC endpoint
+      const maxAttempts = 2;
       
       while (attemptCount < maxAttempts && !success) {
         try {
-          // Set timeout for the balance fetch operation
           const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => reject(new Error("Balance fetch timeout")), CONNECTION_TIMEOUT);
           });
           
-          // Attempt to fetch balance with timeout
           balance = await Promise.race([
             reliableConnection.getBalance(publicKey),
             timeoutPromise
@@ -229,22 +215,18 @@ const TokenCreator: React.FC = () => {
           console.warn(`Balance fetch attempt ${attemptCount} failed: ${error}`);
           
           if (attemptCount < maxAttempts) {
-            // Small delay before retry with same endpoint
             await new Promise(r => setTimeout(r, 500));
           }
         }
       }
       
-      // If all attempts with current endpoint failed, increment failure counter
       if (!success) {
         setBalanceRefreshAttempts(prev => prev + 1);
         
-        // After consecutive failures, start showing connection warning
         if (balanceRefreshAttempts >= 1) {
           setConnectionState('unstable');
         }
         
-        // After more consecutive failures, mark connection as failed
         if (balanceRefreshAttempts >= 3) {
           setConnectionState('failed');
           
@@ -255,11 +237,9 @@ const TokenCreator: React.FC = () => {
           });
         }
         
-        // Use exponential backoff for retries, but cap at MAX_RETRY_DELAY
         const newRetryDelay = Math.min(retryDelay * 1.5, MAX_RETRY_DELAY);
         setRetryDelay(newRetryDelay);
       } else {
-        // On success, reset counters and update balance
         setBalanceRefreshAttempts(0);
         setRetryDelay(CONNECTION_RETRY_DELAY);
         setWalletBalance(balance / LAMPORTS_PER_SOL);
@@ -281,13 +261,11 @@ const TokenCreator: React.FC = () => {
   }, [publicKey, selectedNetwork, balanceRefreshAttempts, lastBalanceUpdateTime, 
       toast, createReliableConnection, retryDelay]);
 
-  // Effect for initial balance fetch and periodic refreshes
   useEffect(() => {
     if (publicKey) {
       refreshWalletBalance(true);
       
       const intervalId = setInterval(() => {
-        // Only auto-refresh if connection isn't marked as failed
         if (connectionState !== 'failed') {
           refreshWalletBalance();
         }
@@ -297,14 +275,10 @@ const TokenCreator: React.FC = () => {
     }
   }, [publicKey, refreshWalletBalance, selectedNetwork, connectionState]);
 
-  // Extra effect to refresh balance when network is changed
   useEffect(() => {
     if (publicKey) {
-      // Reset RPC index when network changes
       setCurrentRpcIndex(0);
-      // Reset connection state
       setConnectionState('connected');
-      // Force balance refresh
       refreshWalletBalance(true);
     }
   }, [selectedNetwork, publicKey, refreshWalletBalance]);
@@ -463,7 +437,6 @@ const TokenCreator: React.FC = () => {
       return;
     }
 
-    // Force refresh of wallet balance before proceeding
     await refreshWalletBalance(true);
 
     if (!hasSufficientBalance()) {
@@ -485,7 +458,6 @@ const TokenCreator: React.FC = () => {
         description: "Please approve the transaction in your wallet",
       });
       
-      // Use our improved connection creation function
       const selectedConnection = createReliableConnection(selectedNetwork);
       
       const result = await createSPLToken({
@@ -505,7 +477,6 @@ const TokenCreator: React.FC = () => {
       setTokenAddress(result.tokenAddress);
       setProgress(100);
       
-      // Refresh balance after successful creation
       setTimeout(() => refreshWalletBalance(true), 2000);
       
       toast({
@@ -525,7 +496,6 @@ const TokenCreator: React.FC = () => {
       setIsCreating(false);
       setReadyToCreate(false);
       
-      // Refresh balance after failed creation attempt
       setTimeout(() => refreshWalletBalance(true), 2000);
     }
   };
@@ -786,7 +756,6 @@ const TokenCreator: React.FC = () => {
             </div>
           </div>
           
-          {/* Add toggle for displaying exact values */}
           <div className="mt-4 pt-3 border-t border-gray-700">
             <div className="flex items-center justify-between">
               <label htmlFor="show-exact" className="text-sm text-muted-foreground cursor-pointer">
@@ -803,7 +772,6 @@ const TokenCreator: React.FC = () => {
             </p>
           </div>
           
-          {/* RPC Status */}
           <div className="mt-4 pt-3 border-t border-gray-700 flex justify-between items-center">
             <div>
               <span className="text-sm text-muted-foreground">
@@ -855,4 +823,101 @@ const TokenCreator: React.FC = () => {
         
         <div className="pt-4">
           <Button 
-            className="w-full
+            className="w-full bg-solana hover:bg-solana-dark"
+            onClick={nextStep}
+            disabled={!hasSufficientBalance()}
+          >
+            {!hasSufficientBalance() ? (
+              "Insufficient Balance"
+            ) : (
+              <>
+                <Coins className="mr-2 h-4 w-4" />
+                Create Token
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {currentStep === 1 && renderAuthStep()}
+      {currentStep > 1 && (
+        <Card className="border border-gray-800 bg-crypto-gray/30 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle>Create Your Meme Coin</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <StepIndicator 
+              steps={STEPS.slice(1)} 
+              currentStepIndex={currentStep - 1} 
+            />
+            
+            {isCreating ? (
+              <div className="py-8 text-center space-y-6">
+                <h3 className="text-lg font-semibold">Creating Your Token</h3>
+                <Progress value={progress} className="w-full max-w-md mx-auto" />
+                <p className="text-sm text-crypto-light">
+                  {progress < 50 ? "Preparing transaction..." : 
+                  progress < 90 ? "Confirming on blockchain..." : 
+                  "Token creation success!"}
+                </p>
+                {creationTxHash && tokenAddress && (
+                  <TokenSummary 
+                    name={form.name}
+                    symbol={form.symbol}
+                    decimals={form.decimals}
+                    supply={form.supply}
+                    txId={creationTxHash}
+                    tokenAddress={tokenAddress}
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="space-y-6 py-4">
+                {currentStep === 10 && renderPaymentStep()}
+                {currentStep === 11 && creationTxHash && tokenAddress && (
+                  <TokenSummary 
+                    name={form.name}
+                    symbol={form.symbol}
+                    decimals={form.decimals}
+                    supply={form.supply}
+                    txId={creationTxHash}
+                    tokenAddress={tokenAddress}
+                  />
+                )}
+              </div>
+            )}
+          </CardContent>
+          {!isCreating && currentStep > 1 && currentStep < STEPS.length && (
+            <CardFooter className="justify-between border-t border-gray-800 p-4">
+              <Button 
+                variant="outline" 
+                onClick={prevStep}
+                disabled={currentStep === 1}
+              >
+                Back
+              </Button>
+              {currentStep < 10 && (
+                <Button onClick={nextStep}>
+                  Next
+                </Button>
+              )}
+            </CardFooter>
+          )}
+          {currentStep === STEPS.length && (
+            <CardFooter className="justify-center border-t border-gray-800 p-4">
+              <Button onClick={resetCreator}>
+                Create Another Token
+              </Button>
+            </CardFooter>
+          )}
+        </Card>
+      )}
+    </div>
+  );
+};
+
+export default TokenCreator;
