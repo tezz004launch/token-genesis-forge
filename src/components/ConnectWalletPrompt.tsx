@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { Coins, Lock, Wallet, AlertTriangle, Loader2 } from 'lucide-react';
+import { Coins, Lock, Wallet, AlertTriangle, Loader2, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -57,6 +57,26 @@ const ConnectWalletPrompt: React.FC<ConnectWalletPromptProps> = ({ children }) =
             <div className="flex items-center gap-3 bg-crypto-dark/50 p-3 rounded-lg">
               <Coins className="text-crypto-green" />
               <span>You'll need at least 0.06 SOL for token creation + fees</span>
+            </div>
+          </div>
+          
+          <div className="bg-gray-800/50 p-4 rounded-lg mt-4">
+            <h4 className="text-sm font-medium text-solana mb-2 flex items-center">
+              <ShieldAlert className="h-4 w-4 mr-1" /> Wallet Authorization
+            </h4>
+            <div className="text-sm text-left space-y-2">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
+                <p className="text-crypto-light">We will be able to view your SOL balance to ensure you have enough for gas fees</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
+                <p className="text-crypto-light">We will send transaction requests to your wallet, but you will always need to review and authorize them</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
+                <p className="text-crypto-light">By connecting your wallet, you agree to our terms of service</p>
+              </div>
             </div>
           </div>
           
