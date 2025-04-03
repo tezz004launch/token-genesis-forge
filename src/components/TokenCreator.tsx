@@ -25,7 +25,8 @@ import {
   MessageSquare,
   RefreshCw,
   WifiOff,
-  Zap
+  Zap,
+  FileEdit
 } from 'lucide-react';
 import {
   Tooltip,
@@ -40,6 +41,15 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import AuthWallet from './AuthWallet';
 import TokenSummary from './TokenSummary';
 import { Switch } from '@/components/ui/switch';
+import { 
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage 
+} from '@/components/ui/form';
 
 const PLATFORM_FEE = 0.05;
 const FEE_RECIPIENT = "FMZJ2zuacqYiyE8E9ysQxALBkcTvCohUCTpLGrCSCnUH";
@@ -47,7 +57,7 @@ const BALANCE_BUFFER = 0.001;
 const BALANCE_REFRESH_INTERVAL = 5000; // 5 seconds
 const CONNECTION_RETRY_DELAY = 1000; // 1 second initial retry delay
 const MAX_RETRY_DELAY = 8000; // Max retry delay of 8 seconds
-const CONNECTION_TIMEOUT = 10000; // 10 seconds timeout for connections
+const CONNECTION_TIMEOUT = 30000; // Increased timeout for connections to 30 seconds
 
 const STEPS = [
   'Connect Wallet',
@@ -68,15 +78,21 @@ const RPC_ENDPOINTS = {
     'https://api.devnet.solana.com',
     'https://solana-devnet-rpc.allthatnode.com',
     'https://devnet.helius-rpc.com/?api-key=15319106-5848-42fd-83c2-b9bdfe17f12c',
+    'https://rpc-devnet.helius.xyz/?api-key=15319106-5848-42fd-83c2-b9bdfe17f12c',
     'https://mango.devnet.rpcpool.com',
-    'https://devnet.genesysgo.net'
+    'https://devnet.genesysgo.net',
+    'https://api.devnet.rpcpool.com',
+    'https://solana-devnet.g.alchemy.com/v2/demo'
   ],
   'mainnet-beta': [
     'https://api.mainnet-beta.solana.com',
     'https://solana-mainnet.g.alchemy.com/v2/demo',
     'https://rpc.ankr.com/solana',
     'https://mainnet.helius-rpc.com/?api-key=15319106-5848-42fd-83c2-b9bdfe17f12c',
-    'https://solana-api.projectserum.com'
+    'https://rpc-mainnet.helius.xyz/?api-key=15319106-5848-42fd-83c2-b9bdfe17f12c',
+    'https://solana-api.projectserum.com',
+    'https://solana.public-rpc.com',
+    'https://api.mainnet.rpcpool.com'
   ]
 };
 
@@ -101,18 +117,18 @@ const TokenCreator: React.FC = () => {
   const [currentRpcIndex, setCurrentRpcIndex] = useState(0);
 
   const [form, setForm] = useState<TokenForm>({
-    name: '',
-    symbol: '',
+    name: 'Demo Meme Coin',
+    symbol: 'DEMO',
     decimals: 9,
-    description: '',
+    description: 'A demonstration meme coin created with the Solana token creator',
     supply: 1000000000,
     image: null,
     revokeMintAuthority: false,
     revokeFreezeAuthority: true,
     immutableMetadata: false,
-    website: '',
-    twitter: '',
-    telegram: ''
+    website: 'https://example.com',
+    twitter: '@example',
+    telegram: 'example'
   });
 
   const [errors, setErrors] = useState({
@@ -137,11 +153,33 @@ const TokenCreator: React.FC = () => {
     const loadFees = async () => {
       if (connection) {
         try {
-          const selectedConnection = createReliableConnection(selectedNetwork);
-          const fees = await calculateTokenCreationFees(selectedConnection);
-          setFeeBreakdown(fees);
+          let attempt = 0;
+          const maxAttempts = 3;
+          let fees = null;
+          
+          while (attempt < maxAttempts && !fees) {
+            try {
+              const selectedConnection = createReliableConnection(selectedNetwork, attempt % RPC_ENDPOINTS[selectedNetwork].length);
+              fees = await calculateTokenCreationFees(selectedConnection);
+              if (fees) {
+                setFeeBreakdown(fees);
+                console.log("Fee calculation successful:", fees);
+                return;
+              }
+            } catch (error) {
+              console.warn(`Fee calculation attempt ${attempt + 1} failed:`, error);
+              attempt++;
+              if (attempt < maxAttempts) {
+                await new Promise(r => setTimeout(r, 1000));
+              }
+            }
+          }
+          
+          if (!fees) {
+            throw new Error("Failed to calculate fees after multiple attempts");
+          }
         } catch (error) {
-          console.error("Error calculating fees:", error);
+          console.error("All fee calculation attempts failed:", error);
           toast({
             title: "Fee Calculation Error",
             description: "Could not calculate transaction fees. Using estimated values.",
@@ -158,6 +196,8 @@ const TokenCreator: React.FC = () => {
     const rpcIndex = rpcIndexOverride !== undefined ? rpcIndexOverride : currentRpcIndex;
     const endpoints = RPC_ENDPOINTS[network];
     const endpoint = endpoints[rpcIndex % endpoints.length];
+    
+    console.log(`Creating connection to: ${endpoint}`);
     
     return new Connection(endpoint, {
       commitment: 'confirmed',
@@ -194,7 +234,7 @@ const TokenCreator: React.FC = () => {
       let success = false;
       let balance = 0;
       let attemptCount = 0;
-      const maxAttempts = 2;
+      const maxAttempts = 3;
       
       while (attemptCount < maxAttempts && !success) {
         try {
@@ -209,13 +249,14 @@ const TokenCreator: React.FC = () => {
           
           success = true;
           setConnectionState('connected');
+          console.log(`Balance fetch successful: ${balance / LAMPORTS_PER_SOL} SOL`);
           
         } catch (error) {
           attemptCount++;
           console.warn(`Balance fetch attempt ${attemptCount} failed: ${error}`);
           
           if (attemptCount < maxAttempts) {
-            await new Promise(r => setTimeout(r, 500));
+            await new Promise(r => setTimeout(r, 1000));
           }
         }
       }
@@ -227,7 +268,7 @@ const TokenCreator: React.FC = () => {
           setConnectionState('unstable');
         }
         
-        if (balanceRefreshAttempts >= 3) {
+        if (balanceRefreshAttempts >= 2) {
           setConnectionState('failed');
           
           toast({
@@ -330,8 +371,25 @@ const TokenCreator: React.FC = () => {
     }
     
     setErrors(newErrors);
-    return !Object.values(newErrors).some(error => error !== '');
-  }, [form]);
+    
+    const hasErrors = Object.values(newErrors).some(error => error !== '');
+    if (hasErrors) {
+      console.log("Form validation failed:", newErrors);
+      
+      const errorMessages = [];
+      if (newErrors.name) errorMessages.push(`Name: ${newErrors.name}`);
+      if (newErrors.symbol) errorMessages.push(`Symbol: ${newErrors.symbol}`);
+      if (newErrors.supply) errorMessages.push(`Supply: ${newErrors.supply}`);
+      
+      toast({
+        title: "Form Validation Failed",
+        description: errorMessages.join(', '),
+        variant: "destructive"
+      });
+    }
+    
+    return !hasErrors;
+  }, [form, toast]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -358,17 +416,16 @@ const TokenCreator: React.FC = () => {
   const nextStep = () => {
     if (currentStep === 2) {
       if (!validateForm()) {
-        toast({
-          title: "Validation Error",
-          description: "Please fix the errors in the form before proceeding.",
-          variant: "destructive"
-        });
         return;
       }
     }
     
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(prev => prev + 1);
+      
+      if (connectionState === 'failed' || connectionState === 'unstable') {
+        switchRpcEndpoint();
+      }
     } else if (currentStep === 9) {
       setReadyToCreate(true);
     }
@@ -382,18 +439,18 @@ const TokenCreator: React.FC = () => {
 
   const resetCreator = () => {
     setForm({
-      name: '',
-      symbol: '',
+      name: 'Demo Meme Coin',
+      symbol: 'DEMO',
       decimals: 9,
-      description: '',
+      description: 'A demonstration meme coin created with the Solana token creator',
       supply: 1000000000,
       image: null,
       revokeMintAuthority: false,
       revokeFreezeAuthority: true,
       immutableMetadata: false,
-      website: '',
-      twitter: '',
-      telegram: ''
+      website: 'https://example.com',
+      twitter: '@example',
+      telegram: 'example'
     });
     setErrors({
       name: '',
@@ -415,8 +472,16 @@ const TokenCreator: React.FC = () => {
     
     console.log(`Balance check: ${walletBalance} SOL available, ${requiredBalance} SOL required (including ${BALANCE_BUFFER} SOL buffer)`);
     
+    if (!hasEnough && walletBalance > 0) {
+      toast({
+        title: "Insufficient Balance",
+        description: `You need at least ${requiredBalance.toFixed(4)} SOL in your wallet. Current balance: ${walletBalance.toFixed(4)} SOL`,
+        variant: "destructive"
+      });
+    }
+    
     return hasEnough;
-  }, [walletBalance, feeBreakdown]);
+  }, [walletBalance, feeBreakdown, toast]);
 
   const handleCreateToken = async () => {
     if (!publicKey) {
@@ -439,8 +504,12 @@ const TokenCreator: React.FC = () => {
 
     await refreshWalletBalance(true);
 
+    if (!validateForm()) {
+      return;
+    }
+
     if (!hasSufficientBalance()) {
-      const totalRequired = feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(4) : PLATFORM_FEE;
+      const totalRequired = feeBreakdown ? (feeBreakdown.total / LAMPORTS_PER_SOL).toFixed(4) : PLATFORM_FEE.toFixed(4);
       toast({
         title: "Insufficient Balance",
         description: `You need at least ${totalRequired} SOL in your wallet. Current balance: ${walletBalance?.toFixed(4) || '0.0000'} SOL`,
@@ -458,35 +527,63 @@ const TokenCreator: React.FC = () => {
         description: "Please approve the transaction in your wallet",
       });
       
-      const selectedConnection = createReliableConnection(selectedNetwork);
+      let result = null;
+      let attemptCount = 0;
+      const maxAttempts = RPC_ENDPOINTS[selectedNetwork].length;
       
-      const result = await createSPLToken({
-        form,
-        wallet: { 
-          publicKey, 
-          sendTransaction: async (transaction, conn) => {
-            return await sendTransaction(transaction, conn);
+      while (!result && attemptCount < maxAttempts) {
+        try {
+          const selectedConnection = createReliableConnection(
+            selectedNetwork, 
+            (currentRpcIndex + attemptCount) % RPC_ENDPOINTS[selectedNetwork].length
+          );
+          
+          console.log(`Attempting token creation with RPC endpoint #${(currentRpcIndex + attemptCount) % RPC_ENDPOINTS[selectedNetwork].length}`);
+          
+          result = await createSPLToken({
+            form,
+            wallet: { 
+              publicKey, 
+              sendTransaction: async (transaction, conn) => {
+                return await sendTransaction(transaction, conn);
+              }
+            },
+            feePayer: FEE_RECIPIENT,
+            connection: selectedConnection,
+            cluster: selectedNetwork
+          });
+        } catch (error) {
+          console.warn(`Token creation attempt ${attemptCount + 1} failed:`, error);
+          attemptCount++;
+          
+          if (attemptCount < maxAttempts) {
+            toast({
+              title: "Retrying with different endpoint",
+              description: `Attempt ${attemptCount + 1} of ${maxAttempts}...`,
+            });
+            await new Promise(r => setTimeout(r, 1000));
+          } else {
+            throw error;
           }
-        },
-        feePayer: FEE_RECIPIENT,
-        connection: selectedConnection,
-        cluster: selectedNetwork
-      });
+        }
+      }
       
-      setCreationTxHash(result.txId);
-      setTokenAddress(result.tokenAddress);
-      setProgress(100);
-      
-      setTimeout(() => refreshWalletBalance(true), 2000);
-      
-      toast({
-        title: "Token Created Successfully!",
-        description: "Your meme coin has been created and sent to your wallet.",
-      });
-      
-      setCurrentStep(STEPS.length - 1);
+      if (result) {
+        setCreationTxHash(result.txId);
+        setTokenAddress(result.tokenAddress);
+        setProgress(100);
+        
+        setTimeout(() => refreshWalletBalance(true), 2000);
+        
+        toast({
+          title: "Token Created Successfully!",
+          description: "Your meme coin has been created and sent to your wallet.",
+        });
+        
+        setCurrentStep(STEPS.length - 1);
+      }
     } catch (error) {
-      console.error('Token creation error:', error);
+      console.error('All token creation attempts failed:', error);
       toast({
         title: "Token Creation Failed",
         description: error instanceof Error ? error.message : "An unknown error occurred",
@@ -506,6 +603,59 @@ const TokenCreator: React.FC = () => {
       setReadyToCreate(false);
     }
   }, [readyToCreate]);
+
+  const renderBasicInfoFields = () => {
+    return (
+      <div className="space-y-4 py-2">
+        <div className="space-y-2">
+          <Label htmlFor="name" className="text-sm font-medium">
+            Token Name <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="name"
+            name="name"
+            value={form.name}
+            onChange={handleInputChange}
+            placeholder="My Awesome Token"
+            className={errors.name ? "border-red-500" : ""}
+          />
+          {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="symbol" className="text-sm font-medium">
+            Token Symbol <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="symbol"
+            name="symbol"
+            value={form.symbol}
+            onChange={handleInputChange}
+            placeholder="TOKEN"
+            className={errors.symbol ? "border-red-500" : ""}
+          />
+          {errors.symbol && <p className="text-xs text-red-500">{errors.symbol}</p>}
+          <p className="text-xs text-muted-foreground">
+            Symbol must be 8 characters or less (e.g. BTC, SHIB, DOGE)
+          </p>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="description" className="text-sm font-medium">
+            Description
+          </Label>
+          <Textarea
+            id="description"
+            name="description"
+            value={form.description}
+            onChange={handleInputChange}
+            placeholder="Describe your token"
+            rows={3}
+          />
+        </div>
+      </div>
+    );
+  };
 
   const renderAuthStep = () => {
     return (
@@ -841,6 +991,39 @@ const TokenCreator: React.FC = () => {
     );
   };
 
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return renderAuthStep();
+      case 2:
+        return renderBasicInfoFields();
+      case 9:
+        return renderPaymentStep();
+      default:
+        return (
+          <div className="py-4 text-center">
+            <FileEdit className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+            <h3 className="text-lg font-medium mb-2">Step {currentStep}: {STEPS[currentStep]}</h3>
+            <p className="text-muted-foreground">
+              This step is included as a placeholder. In a real implementation,
+              you would collect more token details here.
+            </p>
+            {currentStep === 3 && (
+              <div className="mt-4 p-4 bg-blue-900/20 border border-blue-500/20 rounded-md text-left">
+                <p className="text-sm">
+                  Normally on this step, you would configure token parameters like:
+                </p>
+                <ul className="mt-2 space-y-1 text-sm list-disc list-inside">
+                  <li>Total supply: {form.supply.toLocaleString()}</li>
+                  <li>Decimals: {form.decimals}</li>
+                </ul>
+              </div>
+            )}
+          </div>
+        );
+    }
+  };
+
   return (
     <div>
       {currentStep === 1 && renderAuthStep()}
@@ -878,19 +1061,7 @@ const TokenCreator: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-6 py-4">
-                {currentStep === 10 && renderPaymentStep()}
-                {currentStep === 11 && creationTxHash && tokenAddress && (
-                  <TokenSummary 
-                    name={form.name}
-                    symbol={form.symbol}
-                    decimals={form.decimals}
-                    totalSupply={form.supply}
-                    txId={creationTxHash}
-                    mintAddress={tokenAddress}
-                    cluster={selectedNetwork}
-                    onBack={resetCreator}
-                  />
-                )}
+                {renderStepContent()}
               </div>
             )}
           </CardContent>

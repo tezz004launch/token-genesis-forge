@@ -43,8 +43,8 @@ const PLATFORM_FEE = 0.05 * LAMPORTS_PER_SOL;
 const ESTIMATED_TX_FEE = 0.00025 * LAMPORTS_PER_SOL;
 // Token account creation fee
 const TOKEN_ACCOUNT_RENT = 0.002 * LAMPORTS_PER_SOL;
-// Connection timeout
-const CONNECTION_TIMEOUT = 30000; // 30 seconds
+// Connection timeout - increased for stability
+const CONNECTION_TIMEOUT = 45000; // 45 seconds
 
 // Fee breakdown structure
 export interface FeeBreakdown {
@@ -115,6 +115,15 @@ export const createSPLToken = async ({
   cluster = 'devnet' // Default to devnet
 }: TokenCreationParams): Promise<{ txId: string; tokenAddress: string; fees: FeeBreakdown }> => {
   try {
+    console.log("Starting token creation with form data:", {
+      name: form.name, 
+      symbol: form.symbol, 
+      decimals: form.decimals, 
+      supply: form.supply,
+      revokeMintAuthority: form.revokeMintAuthority,
+      revokeFreezeAuthority: form.revokeFreezeAuthority
+    });
+
     if (!wallet.publicKey) {
       throw new Error("Wallet not connected");
     }
@@ -230,6 +239,7 @@ export const createSPLToken = async ({
       ]) as { blockhash: string; lastValidBlockHeight: number };
       
       recentBlockhash = blockHashResponse.blockhash;
+      console.log("Got recent blockhash:", recentBlockhash);
     } catch (error) {
       console.error("Error getting recent blockhash:", error);
       throw new Error("Network connection issue: Unable to fetch recent blockhash. Please try again with a different RPC endpoint.");
@@ -265,20 +275,39 @@ export const createSPLToken = async ({
       throw new Error(`Insufficient balance: ${(walletBalance / LAMPORTS_PER_SOL).toFixed(6)} SOL available, ${(requiredBalance / LAMPORTS_PER_SOL).toFixed(6)} SOL required`);
     }
 
-    // Send transaction
-    console.log(`Sending transaction to create token ${form.name} (${form.symbol})...`);
-    const txId = await wallet.sendTransaction(transaction, connection);
+    // Send transaction with retry logic
+    let txId: string;
+    let retryCount = 0;
+    const maxRetries = 3;
     
-    console.log(`Transaction sent: ${txId}`);
+    while (true) {
+      try {
+        console.log(`Sending transaction to create token ${form.name} (${form.symbol})... attempt ${retryCount + 1}`);
+        txId = await wallet.sendTransaction(transaction, connection);
+        console.log(`Transaction sent: ${txId}`);
+        break; // Exit loop if successful
+      } catch (error) {
+        retryCount++;
+        console.error(`Failed to send transaction (attempt ${retryCount})`, error);
+        
+        if (retryCount >= maxRetries) {
+          throw new Error(`Failed to send transaction after ${maxRetries} attempts: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
     
     // Wait for confirmation with longer timeout for mainnet
-    const confirmationTimeout = cluster === 'mainnet-beta' ? 60000 : 45000;
+    const confirmationTimeout = cluster === 'mainnet-beta' ? 90000 : 60000;
     try {
       // Using an explicit timeout promise
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error("Transaction confirmation timeout")), confirmationTimeout);
       });
       
+      console.log(`Waiting for transaction confirmation (timeout: ${confirmationTimeout}ms)`);
       const confirmation = await Promise.race([
         connection.confirmTransaction(txId, 'confirmed'),
         timeoutPromise
@@ -300,7 +329,8 @@ export const createSPLToken = async ({
       form.decimals,
       form.supply,
       tokenMint.toString(),
-      txId
+      txId,
+      cluster
     );
     
     return {
@@ -320,7 +350,8 @@ export const saveTokenCreationData = (
   decimals: number,
   totalSupply: number,
   mintAddress: string,
-  txId: string
+  txId: string,
+  cluster: Cluster = 'devnet'
 ) => {
   saveTokenSummary({
     name,
@@ -329,7 +360,8 @@ export const saveTokenCreationData = (
     totalSupply,
     mintAddress,
     txId,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    cluster // Add cluster to the saved data
   });
 };
 
