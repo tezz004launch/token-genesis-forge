@@ -4,7 +4,7 @@ import { FeeBreakdown } from '@/lib/solana/tokenService';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Shield, Info, Coins, Loader2, RefreshCw, Zap, Clock } from 'lucide-react';
+import { Shield, Info, Coins, Loader2, RefreshCw, Zap, Clock, AlertTriangle } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
