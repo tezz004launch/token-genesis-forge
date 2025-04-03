@@ -2,7 +2,7 @@
 import React from 'react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, WifiOff, Zap } from 'lucide-react';
+import { AlertTriangle, WifiOff, Zap, Clock } from 'lucide-react';
 
 interface ConnectionStatusProps {
   connectionState: 'connected' | 'unstable' | 'failed';
@@ -27,16 +27,27 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
         <AlertTriangle className="h-4 w-4 text-amber-400" />
         <AlertTitle>Unstable Connection</AlertTitle>
         <AlertDescription>
-          Your connection to the Solana network is unstable. This may cause balance refresh issues.
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={switchRpcEndpoint}
-            className="mt-2 text-xs border-amber-500/30 hover:bg-amber-500/10"
-          >
-            <Zap className="h-3 w-3 mr-1" />
-            Try Different RPC
-          </Button>
+          <p className="mb-2">Your connection to the Solana network is unstable. You might be experiencing rate limiting from the RPC provider.</p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={switchRpcEndpoint}
+              className="text-xs border-amber-500/30 hover:bg-amber-500/10"
+            >
+              <Zap className="h-3 w-3 mr-1" />
+              Try Different RPC
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => window.location.reload()}
+              className="text-xs border-amber-500/30 hover:bg-amber-500/10"
+            >
+              <Clock className="h-3 w-3 mr-1" />
+              Wait & Reload
+            </Button>
+          </div>
         </AlertDescription>
       </Alert>
     );
@@ -47,16 +58,27 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
       <WifiOff className="h-4 w-4 text-red-400" />
       <AlertTitle>Connection Failed</AlertTitle>
       <AlertDescription>
-        We're having trouble connecting to the Solana network. Please try a different RPC endpoint.
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={switchRpcEndpoint}
-          className="mt-2 text-xs border-red-500/30 hover:bg-red-500/10"
-        >
-          <Zap className="h-3 w-3 mr-1" />
-          Try Different RPC ({currentRpcIndex + 1}/{totalEndpoints})
-        </Button>
+        <p className="mb-2">We're having trouble connecting to the Solana network. This might be due to RPC rate limiting or network issues.</p>
+        <div className="flex flex-wrap gap-2 mt-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={switchRpcEndpoint}
+            className="text-xs border-red-500/30 hover:bg-red-500/10"
+          >
+            <Zap className="h-3 w-3 mr-1" />
+            Try Different RPC ({currentRpcIndex + 1}/{totalEndpoints})
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => window.location.reload()}
+            className="text-xs border-red-500/30 hover:bg-red-500/10"
+          >
+            <Clock className="h-3 w-3 mr-1" />
+            Wait & Reload
+          </Button>
+        </div>
       </AlertDescription>
     </Alert>
   );

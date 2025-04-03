@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TokenCreator from '@/components/TokenCreator';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, Info } from 'lucide-react';
+import { ChevronLeft, Info, AlertTriangle } from 'lucide-react';
 import { useSession } from '@/contexts/SessionContext';
 import ConnectWalletPrompt from '@/components/ConnectWalletPrompt';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -18,6 +18,7 @@ const TokenCreationPage = () => {
   const [connectionAttempted, setConnectionAttempted] = useState(false);
   const [walletJustConnected, setWalletJustConnected] = useState(false);
   const [pageLoadTime] = useState(Date.now());
+  const [rpcLimitWarning, setRpcLimitWarning] = useState(false);
 
   // Monitor wallet connection attempts
   useEffect(() => {
@@ -56,6 +57,24 @@ const TokenCreationPage = () => {
     }
   }, [connectionAttempted, connected, connecting]);
 
+  // Listen for RPC rate limiting errors in console logs
+  useEffect(() => {
+    const originalConsoleWarn = console.warn;
+    console.warn = function(...args) {
+      const message = args.join(' ');
+      if (message.includes('429') || 
+          message.includes('Too many requests') || 
+          message.includes('rate limit')) {
+        setRpcLimitWarning(true);
+      }
+      originalConsoleWarn.apply(console, args);
+    };
+    
+    return () => {
+      console.warn = originalConsoleWarn;
+    };
+  }, []);
+  
   // Debug log page load time and wallet status
   useEffect(() => {
     console.log(`[TokenCreationPage] Page loaded at ${new Date(pageLoadTime).toISOString()}`);
@@ -78,6 +97,15 @@ const TokenCreationPage = () => {
             <h1 className="text-2xl font-bold ml-4">Create Token</h1>
           </div>
         </div>
+
+        {rpcLimitWarning && (
+          <Alert className="bg-yellow-900/20 border-yellow-800/30 mb-6">
+            <AlertTriangle className="h-4 w-4 text-yellow-400" />
+            <AlertDescription className="font-medium">
+              You're experiencing rate limiting issues with Solana RPC nodes. Try using the "Change RPC" button to switch to a different endpoint, or wait a few minutes before continuing.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Alert className="bg-blue-900/20 border-blue-800/30 mb-6">
           <Info className="h-4 w-4 text-blue-400" />

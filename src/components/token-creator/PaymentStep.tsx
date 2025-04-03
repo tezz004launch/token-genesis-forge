@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FeeBreakdown } from '@/lib/solana/tokenService';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Shield, Info, Coins, Loader2, RefreshCw, Zap } from 'lucide-react';
+import { Shield, Info, Coins, Loader2, RefreshCw, Zap, Clock } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -41,6 +41,38 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
   onNext
 }) => {
   const [showExactValues, setShowExactValues] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState<number | null>(null);
+  const [rateLimitDetected, setRateLimitDetected] = useState(false);
+  
+  // Listen for rate limiting errors in console logs
+  useEffect(() => {
+    const originalConsoleWarn = console.warn;
+    console.warn = function(...args) {
+      const message = args.join(' ');
+      if (message.includes('429') || 
+          message.includes('Too many requests') || 
+          message.includes('rate limit')) {
+        setRateLimitDetected(true);
+        
+        // Auto-reset after 30 seconds
+        setTimeout(() => setRateLimitDetected(false), 30000);
+      }
+      originalConsoleWarn.apply(console, args);
+    };
+    
+    return () => {
+      console.warn = originalConsoleWarn;
+    };
+  }, []);
+  
+  const handleRefreshBalance = async () => {
+    setLastRefreshTime(Date.now());
+    await refreshWalletBalance(true);
+  };
+  
+  // Determine if refresh button should be disabled (prevent spam)
+  const isRefreshDisabled = isLoadingBalance || 
+    (lastRefreshTime && Date.now() - lastRefreshTime < 5000);
   
   return (
     <div className="space-y-6">
@@ -50,6 +82,39 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
           Review payment details before creating your meme coin
         </p>
       </div>
+      
+      {rateLimitDetected && (
+        <Alert className="bg-yellow-900/20 border-yellow-500/20">
+          <AlertTriangle className="h-4 w-4 text-yellow-400" />
+          <AlertTitle>Rate Limiting Detected</AlertTitle>
+          <AlertDescription>
+            <p className="mb-2">You're being rate limited by the Solana RPC server. This can cause balance refresh failures.</p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={switchRpcEndpoint}
+                className="text-xs border-yellow-500/30 hover:bg-yellow-500/10"
+              >
+                <Zap className="h-3 w-3 mr-1" />
+                Try Different RPC
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-xs border-yellow-500/30 hover:bg-yellow-500/10"
+                onClick={() => {
+                  setTimeout(() => refreshWalletBalance(true), 5000);
+                  setRateLimitDetected(false);
+                }}
+              >
+                <Clock className="h-3 w-3 mr-1" />
+                Wait & Retry
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
       
       <ConnectionStatus 
         connectionState={connectionState}
@@ -170,9 +235,10 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={() => refreshWalletBalance(true)}
-              className="h-5 w-5 transition-all hover:bg-gray-700/50"
-              disabled={isLoadingBalance}
+              onClick={handleRefreshBalance}
+              className={`h-5 w-5 transition-all ${isRefreshDisabled ? 'opacity-50' : 'hover:bg-gray-700/50'}`}
+              disabled={isRefreshDisabled}
+              title={isRefreshDisabled && lastRefreshTime ? `Wait ${Math.ceil((5000 - (Date.now() - lastRefreshTime)) / 1000)}s to refresh again` : "Refresh balance"}
             >
               <RefreshCw className={`h-3 w-3 ${isLoadingBalance ? 'animate-spin' : ''}`} />
               <span className="sr-only">Refresh balance</span>
@@ -248,15 +314,26 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
               )}
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={switchRpcEndpoint}
-            className="text-xs"
-          >
-            <Zap className="h-3 w-3 mr-1" />
-            Change RPC ({currentRpcIndex + 1}/{RPC_ENDPOINTS[selectedNetwork].length})
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => window.location.reload()}
+              className="text-xs"
+            >
+              <Clock className="h-3 w-3 mr-1" />
+              Reload Page
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={switchRpcEndpoint}
+              className="text-xs"
+            >
+              <Zap className="h-3 w-3 mr-1" />
+              Change RPC ({currentRpcIndex + 1}/{RPC_ENDPOINTS[selectedNetwork].length})
+            </Button>
+          </div>
         </div>
       </div>
       
