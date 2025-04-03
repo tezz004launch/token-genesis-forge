@@ -851,8 +851,8 @@ const TokenCreator: React.FC = () => {
           </CardHeader>
           <CardContent>
             <StepIndicator 
-              steps={STEPS.slice(1)} 
-              currentStepIndex={currentStep - 1} 
+              currentStep={currentStep - 1} 
+              totalSteps={STEPS.length - 1} 
             />
             
             {isCreating ? (
@@ -869,9 +869,10 @@ const TokenCreator: React.FC = () => {
                     name={form.name}
                     symbol={form.symbol}
                     decimals={form.decimals}
-                    supply={form.supply}
+                    totalSupply={form.supply}
                     txId={creationTxHash}
-                    tokenAddress={tokenAddress}
+                    mintAddress={tokenAddress}
+                    cluster={selectedNetwork}
                   />
                 )}
               </div>
@@ -883,9 +884,11 @@ const TokenCreator: React.FC = () => {
                     name={form.name}
                     symbol={form.symbol}
                     decimals={form.decimals}
-                    supply={form.supply}
+                    totalSupply={form.supply}
                     txId={creationTxHash}
-                    tokenAddress={tokenAddress}
+                    mintAddress={tokenAddress}
+                    cluster={selectedNetwork}
+                    onBack={resetCreator}
                   />
                 )}
               </div>
