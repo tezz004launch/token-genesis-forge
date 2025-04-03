@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Coins, ArrowRight, Droplets, BarChart3, Wallet } from 'lucide-react';
+import { Coins, ArrowRight, Droplets, BarChart3, Wallet, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const TokenCreationInfo: React.FC = () => {
   return (
@@ -47,6 +48,13 @@ const TokenCreationInfo: React.FC = () => {
               <p className="text-xs text-crypto-light">Make token tradable</p>
             </div>
           </div>
+          
+          <Alert className="bg-amber-900/20 border-amber-500/30 mt-2">
+            <AlertTriangle className="h-4 w-4 text-amber-400" />
+            <AlertDescription className="text-sm">
+              <strong>Balance Tip:</strong> Make sure you have enough SOL in your wallet. If you see "Insufficient Balance" but believe you have enough funds, try refreshing your balance or switching to "Show Exact Values" in the payment step.
+            </AlertDescription>
+          </Alert>
           
           <div className="bg-blue-900/20 border border-blue-800/30 p-4 rounded-md mt-4">
             <h4 className="text-sm font-medium mb-2 flex items-center gap-2">

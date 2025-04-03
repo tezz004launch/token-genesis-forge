@@ -59,16 +59,37 @@ export interface FeeBreakdown {
 export const calculateTokenCreationFees = async (
   connection: Connection
 ): Promise<FeeBreakdown> => {
-  // Get actual rent exemption for mint
-  const mintRent = await getMinimumBalanceForRentExemptMint(connection);
-  
-  return {
-    mintAccountRent: mintRent,
-    tokenAccountRent: TOKEN_ACCOUNT_RENT,
-    transactionFee: ESTIMATED_TX_FEE,
-    platformFee: PLATFORM_FEE,
-    total: mintRent + TOKEN_ACCOUNT_RENT + ESTIMATED_TX_FEE + PLATFORM_FEE
-  };
+  try {
+    // Get actual rent exemption for mint
+    const mintRent = await getMinimumBalanceForRentExemptMint(connection);
+    
+    // Calculate total
+    const total = mintRent + TOKEN_ACCOUNT_RENT + ESTIMATED_TX_FEE + PLATFORM_FEE;
+    
+    console.log(`Calculated fees: Mint rent: ${mintRent/LAMPORTS_PER_SOL}, Token account: ${TOKEN_ACCOUNT_RENT/LAMPORTS_PER_SOL}, TX fee: ${ESTIMATED_TX_FEE/LAMPORTS_PER_SOL}, Platform fee: ${PLATFORM_FEE/LAMPORTS_PER_SOL}, Total: ${total/LAMPORTS_PER_SOL}`);
+    
+    return {
+      mintAccountRent: mintRent,
+      tokenAccountRent: TOKEN_ACCOUNT_RENT,
+      transactionFee: ESTIMATED_TX_FEE,
+      platformFee: PLATFORM_FEE,
+      total
+    };
+  } catch (error) {
+    console.error("Error calculating token creation fees:", error);
+    
+    // Return fallback values if the connection fails
+    const mintRent = 0.00203928 * LAMPORTS_PER_SOL; // Typical value
+    const total = mintRent + TOKEN_ACCOUNT_RENT + ESTIMATED_TX_FEE + PLATFORM_FEE;
+    
+    return {
+      mintAccountRent: mintRent,
+      tokenAccountRent: TOKEN_ACCOUNT_RENT,
+      transactionFee: ESTIMATED_TX_FEE,
+      platformFee: PLATFORM_FEE,
+      total
+    };
+  }
 };
 
 /**
@@ -176,6 +197,15 @@ export const createSPLToken = async ({
 
     // Calculate total fees for this transaction
     const fees = await calculateTokenCreationFees(connection);
+
+    // Double-check wallet balance before sending transaction
+    const walletBalance = await connection.getBalance(wallet.publicKey);
+    const requiredBalance = fees.total;
+    
+    if (walletBalance < requiredBalance) {
+      console.error(`Insufficient balance: ${walletBalance / LAMPORTS_PER_SOL} SOL available, ${requiredBalance / LAMPORTS_PER_SOL} SOL required`);
+      throw new Error(`Insufficient balance: ${(walletBalance / LAMPORTS_PER_SOL).toFixed(6)} SOL available, ${(requiredBalance / LAMPORTS_PER_SOL).toFixed(6)} SOL required`);
+    }
 
     // Send transaction
     console.log(`Sending transaction to create token ${form.name} (${form.symbol})...`);
