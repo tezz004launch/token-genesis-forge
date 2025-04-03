@@ -29,7 +29,7 @@ const TokenCreationPage = () => {
         </div>
 
         {!connected ? (
-          <ConnectWalletPrompt message="Please connect your wallet to create a meme coin" />
+          <ConnectWalletPrompt>Please connect your wallet to create a meme coin</ConnectWalletPrompt>
         ) : (
           <TokenCreator />
         )}
