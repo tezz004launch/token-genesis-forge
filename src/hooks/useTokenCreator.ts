@@ -177,11 +177,11 @@ export const useTokenCreator = () => {
     }
 
     if (!hasSufficientBalance) {
-      // Instead of blocking, just warn
+      // Fix: Changed 'warning' to 'destructive' to match the allowed types
       toast({
         title: "Warning: Insufficient Balance",
         description: "Your transaction may fail due to insufficient funds, but we'll attempt it anyway.",
-        variant: "warning"
+        variant: "destructive"
       });
     }
 
